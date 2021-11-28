@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "8H+mQKflUAoCxowmzgx3M6M4XsAxAqkc02iteLxeDRrZ43RWY+CuPzHensCQDPR9c/bIv3BKpCRI33eIGdoEYA==",
+  "success": true,
+  "projectFilePath": "/Users/nico/Library/Application Support/Terraria/ModLoader/Mod Sources/DeathsTerminus/DeathsTerminus.csproj",
+  "expectedPackageFiles": [
+    "/Users/nico/.nuget/packages/tmodloader.codeassist/0.1.2/tmodloader.codeassist.0.1.2.nupkg.sha512"
+  ],
+  "logs": []
+}
