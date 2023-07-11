@@ -17,13 +17,6 @@ namespace DeathsTerminus
 
         public DeathsTerminus()
         {
-            Properties = new ModProperties()
-            {
-                Autoload = true,
-                AutoloadBackgrounds = true,
-                AutoloadGores = true,
-                AutoloadSounds = true,
-            };
             Loading = true;
             ReleaseAsync = false;
         }
@@ -37,11 +30,11 @@ namespace DeathsTerminus
 
             ThreadPool.QueueUserWorkItem(TextureCache.Async_CreateSunTextures, Logger);
 
-            On.Terraria.Main.DrawInterface_Resources_Life += PostDrawLifeBar;
+            //Terraria.On_Main.DrawInterface_Resources_Life += PostDrawLifeBar;
         }
 
         //to make it not draw the vanilla hearts, just don't do orig.Invoke()
-        private void PostDrawLifeBar(On.Terraria.Main.orig_DrawInterface_Resources_Life orig)
+        /*private void PostDrawLifeBar(Terraria.On_Main.orig_DrawInterface_Resources_Life orig)
         {
             orig.Invoke();
 
@@ -91,12 +84,7 @@ namespace DeathsTerminus
 
                 Main.spriteBatch.Draw(heartTexture, new Vector2((float)(500 + Main.screenWidth - 800 + heartTexture.Width / 2), 32f + ((float)heartTexture.Height - (float)heartTexture.Height * num13) / 2f + (float)(heartTexture.Height / 2)), (Rectangle?)new Rectangle(0, 0, heartTexture.Width, heartTexture.Height), new Color(num14, num14, num14, a), 0f, new Vector2((float)(heartTexture.Width / 2), (float)(heartTexture.Height / 2)), num13, (SpriteEffects)0, 0f);
             }
-        }
-
-        public override void AddRecipes()
-        {
-            Loading = false;
-        }
+        }*/
 
         public override void Unload()
         {

@@ -1,0 +1,91 @@
+Mods: {
+	DeathsTerminus: {
+		Buffs: {
+			MysteriousPresence: {
+				DisplayName: Mysterious Presence
+				Description: A mysterious presence has cursed you
+			}
+		}
+
+		Items: {
+			CatastrophicSigil: {
+				DisplayName: Catastrophic Sigil
+				Tooltip: Challenges the master mothman
+			}
+
+			CatastrophicSigilDebugP2: {
+				DisplayName: Catastrophic Sigil Phase 2
+				Tooltip: Challenges the master mothman
+			}
+
+			CatastrophicSigilDebugP3: {
+				DisplayName: Catastrophic Sigil Phase 3
+				Tooltip: Challenges the master mothman
+			}
+
+			CatastrophicSigilDebugP4: {
+				DisplayName: Catastrophic Sigil Phase 4
+				Tooltip: Challenges the master mothman
+			}
+
+			TemporalWings: {
+				DisplayName: Temporal Wings
+				Tooltip: Allows for flight and slow fall
+			}
+		}
+
+		NPCs: {
+			CataBoss.DisplayName: Cataclysmic Armageddon
+
+			CataclysmicArmageddon: {
+				DisplayName: Cataclysmic Armageddon
+
+				TownNPCMood: {
+					Content: I am content.
+					NoHome: I hate not having a home.
+					FarFromHome: I am too far from home.
+					LoveSpace: I love having so much space.
+					DislikeCrowded: I dislike how crowded I am.
+					HateCrowded: I hate how crowded I am.
+					LikeNPC_Princess: I like {NPCName}.
+					Princess_LovesNPC: I like {NPCName}.
+				}
+
+				Census.SpawnCondition: Conditions unknown
+			}
+		}
+
+		Projectiles: {
+			BabyMothronProjectile.DisplayName: Baby Mothron
+			CataBossFireballRing.DisplayName: Celestial Flame
+			CataBossMine.DisplayName: Celestial Doom
+			CataBossMine2.DisplayName: Celestial Doom
+			CataBossRod.DisplayName: Rod of Judgement
+			CataBossScythe.DisplayName: Demon Scythe
+			CataBossStar.DisplayName: Falling Star
+			CataBossSuperScythe.DisplayName: Super Scythe
+			CataBusterSword.DisplayName: Buster Sword
+			CataLastPrism.DisplayName: Last Prism
+			CelestialLamp.DisplayName: Celestial Lamp
+			DoomedFishron.DisplayName: Doomed Fishron
+			FishronPlatform.DisplayName: Sitting Duke
+			FloatingBubble.DisplayName: Death Bubble
+			HeavenPetProjectile.DisplayName: Mega Sprocket
+			IceShard.DisplayName: Ice Shard
+			IceShardArena.DisplayName: Ice Shard
+			IceShield.DisplayName: Ice Shield
+			MegaBaddy.DisplayName: Mysterious Presence
+			MegaSprocket.DisplayName: Mega Sprocket
+			MegaSprocketPrism.DisplayName: Last Prism
+			MothProjectile.DisplayName: Moth
+			MothronProjectile.DisplayName: Mothron
+			MothronSpiralProjectile.DisplayName: Mothron
+			RotatingIceShards.DisplayName: Ice Shards
+			Shadow.DisplayName: Shadow
+			SigilArena.DisplayName: Orbiting Sigil
+			SunLamp.DisplayName: Sun Lamp
+		}
+
+		Conditions.CataMothCondition: Kill Mothron
+	}
+}

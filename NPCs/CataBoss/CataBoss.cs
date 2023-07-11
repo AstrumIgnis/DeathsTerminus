@@ -1,4 +1,6 @@
 ﻿using System;
+using Terraria.Audio;
+using Terraria.GameContent;
 using Terraria.ModLoader;
 using Terraria;
 using Terraria.ID;
@@ -9,6 +11,8 @@ using System.Collections.Generic;
 using System.IO;
 using Terraria.Graphics.Effects;
 using DeathsTerminus.Assets;
+using Terraria.DataStructures;
+using Terraria.GameContent.Bestiary;
 
 namespace DeathsTerminus.NPCs.CataBoss
 {
@@ -40,69 +44,84 @@ namespace DeathsTerminus.NPCs.CataBoss
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Cataclysmic Armageddon");
-            Main.npcFrameCount[npc.type] = 6;
+            // DisplayName.SetDefault("Cataclysmic Armageddon");
+            Main.npcFrameCount[NPC.type] = 6;
 
-            NPCID.Sets.TrailCacheLength[npc.type] = 26;
-            NPCID.Sets.TrailingMode[npc.type] = 3;
+            NPCID.Sets.TrailCacheLength[NPC.type] = 26;
+            NPCID.Sets.TrailingMode[NPC.type] = 3;
+
+            NPCID.Sets.MPAllowedEnemies[Type] = true;
+            NPCID.Sets.BossBestiaryPriority.Add(Type);
+
+            NPCDebuffImmunityData debuffData = new()
+            {
+                ImmuneToAllBuffsThatAreNotWhips = true
+            };
+            NPCID.Sets.DebuffImmunitySets.Add(Type, debuffData);
+
+            NPCID.Sets.NPCBestiaryDrawModifiers value = new(0);
+            NPCID.Sets.NPCBestiaryDrawOffset.Add(Type, value);
         }
 
         public override void SetDefaults()
         {
-            npc.aiStyle = (int)AIStyles.CustomAI;
-            npc.width = 18;
-            npc.height = 40;
-            drawOffsetY = -5;
+            NPC.aiStyle = (int)AIStyles.CustomAI;
+            NPC.width = 18;
+            NPC.height = 40;
+            DrawOffsetY = -5;
 
-            npc.defense = 0;
-            npc.lifeMax = 250;
-            npc.chaseable = false;
-            npc.HitSound = SoundID.NPCHit5;
-            npc.DeathSound = SoundID.NPCDeath59;
+            NPC.defense = 0;
+            NPC.lifeMax = 250;
+            NPC.chaseable = false;
+            NPC.HitSound = SoundID.NPCHit5;
+            NPC.DeathSound = SoundID.NPCDeath59;
 
-            npc.damage = 160;
-            npc.knockBackResist = 0f;
+            NPC.damage = 160;
+            NPC.knockBackResist = 0f;
 
-            npc.value = Item.buyPrice(platinum: 1);
+            NPC.value = Item.buyPrice(platinum: 1);
 
-            npc.npcSlots = 15f;
-            npc.boss = true;
+            NPC.npcSlots = 15f;
+            NPC.boss = true;
             //bossBag = ItemType<CataBossBag>();
 
-            npc.lavaImmune = true;
-            npc.noGravity = true;
-            npc.noTileCollide = true;
+            NPC.lavaImmune = true;
+            NPC.noGravity = true;
+            NPC.noTileCollide = true;
 
-            for (int i = 0; i < Main.maxBuffTypes; i++)
+            Music = MusicID.Boss4;
+
+            if (ModLoader.TryGetMod("DeathsTerminusMusic", out Mod DeathsTerminusMusic))
             {
-                npc.buffImmune[i] = true;
-            }
-
-            music = MusicID.Boss4;
-
-            Mod modMusic = ModLoader.GetMod("DeathsTerminusMusic");
-            if (modMusic != null)
-            {
-                music = modMusic.GetSoundSlot(SoundType.Music, "Sounds/Music/Lights_Aerial_Veil");
+                if (!Main.dedServ)
+                    Music = MusicLoader.GetMusicSlot(DeathsTerminusMusic, "Sounds/Music/Lights_Aerial_Veil");
             }
         }
+        public override void SetBestiary(BestiaryDatabase database, BestiaryEntry bestiaryEntry)
+        {
+            bestiaryEntry.Info.AddRange(new List<IBestiaryInfoElement> {
+                BestiaryDatabaseNPCsPopulator.CommonTags.SpawnConditions.Biomes.Surface,
+                BestiaryDatabaseNPCsPopulator.CommonTags.SpawnConditions.Times.NightTime,
 
+                new FlavorTextBestiaryInfoElement("goo goo ga ga im cata i like lamps")
+            });
+        }
         public override void AI()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
             if (!player.active || player.dead)
             {
-                npc.TargetClosest(false);
-                player = Main.player[npc.target];
+                NPC.TargetClosest(false);
+                player = Main.player[NPC.target];
                 if (!player.active || player.dead)
                 {
-                    if (npc.localAI[0] == 0)
+                    if (NPC.localAI[0] == 0)
                     {
                         ShadowCataFleeAnimation();
                     }
                     else
                     {
-                        npc.Transform(ModContent.NPCType<CataclysmicArmageddon>());
+                        NPC.Transform(ModContent.NPCType<CataclysmicArmageddon>());
                     }
 
                     for (int i = 0; i < Main.maxProjectiles; i++)
@@ -140,7 +159,7 @@ namespace DeathsTerminus.NPCs.CataBoss
             {
                 if ((float)Main.rand.Next(100) <= 100f * teleportTime)
                 {
-                    int num2 = Dust.NewDust(npc.position, npc.width, npc.height, 164);
+                    int num2 = Dust.NewDust(NPC.position, NPC.width, NPC.height, DustID.TeleportationPotion);
                     Main.dust[num2].scale = teleportTime * 1.5f;
                     Main.dust[num2].noGravity = true;
                     Dust obj2 = Main.dust[num2];
@@ -149,19 +168,19 @@ namespace DeathsTerminus.NPCs.CataBoss
                 teleportTime -= 0.005f;
             }
 
-            npc.life = npc.lifeMax;
+            NPC.life = NPC.lifeMax;
 
             //RoD anticheese
-            if (npc.ai[0] < 23 && rodAnticheeseCooldown == 0 && player.HeldItem.type == ItemID.RodofDiscord && player.itemTime > 0)
+            if (NPC.ai[0] < 23 && rodAnticheeseCooldown == 0 && player.HeldItem.type == ItemID.RodofDiscord && player.itemTime > 0)
             {
                 rodAnticheeseCooldown = player.itemTime;
-                if (Main.netMode != 1)
+                if (Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<CataBossRod>(), 80, 0f, Main.myPlayer, player.whoAmI);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<CataBossRod>(), 80, 0f, Main.myPlayer, player.whoAmI);
                 }
             }
 
-            switch (npc.ai[0])
+            switch (NPC.ai[0])
             {
                 case 0:
                     //5 secs each
@@ -284,8 +303,8 @@ namespace DeathsTerminus.NPCs.CataBoss
                     else
                     {
                         killable = true;
-                        npc.life = 0;
-                        npc.checkDead();
+                        NPC.life = 0;
+                        NPC.checkDead();
                     }
                     break;
                 case 30:
@@ -294,163 +313,163 @@ namespace DeathsTerminus.NPCs.CataBoss
                     break;
                 case 31:
                     killable = true;
-                    npc.life = 0;
-                    npc.checkDead();
+                    NPC.life = 0;
+                    NPC.checkDead();
                     break;
             }
         }
 
         private void FlyToPoint(Vector2 goalPoint, Vector2 goalVelocity, float maxXAcc = 0.5f, float maxYAcc = 0.5f)
         {
-            Vector2 goalOffset = goalPoint - goalVelocity - npc.Center;
-            Vector2 relativeVelocity = npc.velocity - goalVelocity;
+            Vector2 goalOffset = goalPoint - goalVelocity - NPC.Center;
+            Vector2 relativeVelocity = NPC.velocity - goalVelocity;
 
             //compute whether we'll overshoot or undershoot our X goal at our current velocity
             if (relativeVelocity.X * relativeVelocity.X / 2 / maxXAcc > Math.Abs(goalOffset.X) && (goalOffset.X > 0 ^ relativeVelocity.X < 0))
             {
                 //overshoot
-                npc.velocity.X += maxXAcc * (goalOffset.X > 0 ? -1 : 1);
+                NPC.velocity.X += maxXAcc * (goalOffset.X > 0 ? -1 : 1);
             }
             else
             {
                 //undershoot
-                npc.velocity.X += maxXAcc * (goalOffset.X > 0 ? 1 : -1);
+                NPC.velocity.X += maxXAcc * (goalOffset.X > 0 ? 1 : -1);
             }
             //compute whether we'll overshoot or undershoot our X goal at our current velocity
             if (relativeVelocity.Y * relativeVelocity.Y / 2 / maxYAcc > Math.Abs(goalOffset.Y) && (goalOffset.Y > 0 ^ relativeVelocity.Y < 0))
             {
                 //overshoot
-                npc.velocity.Y += maxYAcc * (goalOffset.Y > 0 ? -1 : 1);
+                NPC.velocity.Y += maxYAcc * (goalOffset.Y > 0 ? -1 : 1);
             }
             else
             {
                 //undershoot
-                npc.velocity.Y += maxYAcc * (goalOffset.Y > 0 ? 1 : -1);
+                NPC.velocity.Y += maxYAcc * (goalOffset.Y > 0 ? 1 : -1);
             }
         }
 
         //1 sec
         private void SpawnAnimation()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.localAI[0] == 0 && npc.ai[1] == 0)
+            if (NPC.localAI[0] == 0 && NPC.ai[1] == 0)
             {
-                npc.Center = player.Center + new Vector2(240 * (Main.rand.NextBool() ? 1 : -1), -240);
-                npc.velocity = Vector2.Zero;
+                NPC.Center = player.Center + new Vector2(240 * (Main.rand.NextBool() ? 1 : -1), -240);
+                NPC.velocity = Vector2.Zero;
 
                 for (int i = 0; i < 128; i++)
                 {
-                    Dust.NewDustDirect(npc.position, npc.width, npc.height, ModContent.DustType<ShadowDust>(), Scale: 2).velocity = new Vector2((float)Math.Sin(Main.rand.NextFloat() * MathHelper.Pi / 2f) * 6f,0).RotatedByRandom(MathHelper.TwoPi);
+                    Dust.NewDustDirect(NPC.position, NPC.width, NPC.height, ModContent.DustType<ShadowDust>(), Scale: 2).velocity = new Vector2((float)Math.Sin(Main.rand.NextFloat() * MathHelper.Pi / 2f) * 6f, 0).RotatedByRandom(MathHelper.TwoPi);
                 }
 
                 Main.LocalPlayer.GetModPlayer<DTPlayer>().screenShakeTime = 60;
-                Main.PlaySound(SoundID.DoubleJump, npc.Center);
-                Main.PlaySound(SoundID.Item122, npc.Center);
+                SoundEngine.PlaySound(SoundID.DoubleJump, NPC.Center);
+                SoundEngine.PlaySound(SoundID.Item122, NPC.Center);
 
-                CombatText.NewText(npc.getRect(), new Color(0, 76, 153), "So, here we are... it's about time you died!", true);
+                CombatText.NewText(NPC.getRect(), new Color(0, 76, 153), "So, here we are... it's about time you died!", true);
 
                 //initialize custom death sound
-                npc.DeathSound = mod.GetLegacySoundSlot(SoundType.Custom, "Sounds/ShadowCataDeath").WithVolume(4f);
+                NPC.DeathSound = new("DeathsTerminus/Sounds/ShadowCataDeath") { Volume = .4f };
             }
 
-            if ((npc.Center - player.Center).Length() > 1000 && npc.ai[1] == 0)
+            if ((NPC.Center - player.Center).Length() > 1000 && NPC.ai[1] == 0)
             {
-                npc.Center = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 1000;
+                NPC.Center = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 1000;
             }
 
             spawnTransitionColor = Color.Purple;
 
             CataBossSky.celestialObject = 0;
 
-            if (npc.ai[1] == 120)
+            if (NPC.ai[1] == 120)
             {
-                if (npc.localAI[0] == 0)
+                if (NPC.localAI[0] == 0)
                 {
-                    CombatText.NewText(npc.getRect(), new Color(0, 76, 153), "Don't waste your time attacking.", true);
+                    CombatText.NewText(NPC.getRect(), new Color(0, 76, 153), "Don't waste your time attacking.", true);
                 }
                 else
                 {
-                    CombatText.NewText(npc.getRect(), new Color(0, 76, 153), "So you think you can defeat me?", true);
+                    CombatText.NewText(NPC.getRect(), new Color(0, 76, 153), "So you think you can defeat me?", true);
                 }
             }
-            else if (npc.ai[1] == 180)
+            else if (NPC.ai[1] == 180)
             {
-                Main.PlaySound(SoundID.Zombie, npc.Center, 105);
+                SoundEngine.PlaySound(SoundID.Zombie105, NPC.Center);
             }
-            else if (npc.ai[1] == 299)
+            else if (NPC.ai[1] == 299)
             {
-                if (npc.localAI[0] == 0)
+                if (NPC.localAI[0] == 0)
                 {
-                    CombatText.NewText(npc.getRect(), Color.Purple, "This shadow form can't be damaged!", true);
+                    CombatText.NewText(NPC.getRect(), Color.Purple, "This shadow form can't be damaged!", true);
                 }
                 else
                 {
-                    CombatText.NewText(npc.getRect(), Color.Purple, "Well then, let's see what you can do.", true);
+                    CombatText.NewText(NPC.getRect(), Color.Purple, "Well then, let's see what you can do.", true);
                 }
             }
 
             //transition animation
-            if (npc.ai[1] >= 180 && npc.ai[1] < 299)
+            if (NPC.ai[1] >= 180 && NPC.ai[1] < 299)
             {
-                npc.velocity = Vector2.Zero;
+                NPC.velocity = Vector2.Zero;
 
                 drawSpawnTransitionRing = true;
             }
             else
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 240;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 240;
 
-                if (npc.localAI[0] == 0)
+                if (NPC.localAI[0] == 0)
                 {
-                    goalPosition = player.Center + new Vector2(-npc.direction, -1) * 240;
+                    goalPosition = player.Center + new Vector2(-NPC.direction, -1) * 240;
                 }
 
                 FlyToPoint(goalPosition, Vector2.Zero);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 300)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 300)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void Phase1To2Animation()
         {
             //Pre-animation and text
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
             spawnTransitionColor = Color.Orange;
 
-            if (npc.ai[1] == 120)
+            if (NPC.ai[1] == 120)
             {
-                if (npc.localAI[0] == 0)
+                if (NPC.localAI[0] == 0)
                 {
-                    CombatText.NewText(npc.getRect(), Color.Purple, "This is only the beginning, you insect!", true);
+                    CombatText.NewText(NPC.getRect(), Color.Purple, "This is only the beginning, you insect!", true);
                 }
                 else
                 {
-                    CombatText.NewText(npc.getRect(), Color.Purple, "Not bad, you've survived a minute.", true);
+                    CombatText.NewText(NPC.getRect(), Color.Purple, "Not bad, you've survived a minute.", true);
                 }
             }
-            else if (npc.ai[1] == 180)
+            else if (NPC.ai[1] == 180)
             {
-                Main.PlaySound(SoundID.Zombie, npc.Center, 105);
+                SoundEngine.PlaySound(SoundID.Zombie105, NPC.Center);
             }
-            else if (npc.ai[1] == 299)
+            else if (NPC.ai[1] == 299)
             {
-                if (npc.localAI[0] == 0)
+                if (NPC.localAI[0] == 0)
                 {
-                    CombatText.NewText(npc.getRect(), Color.Orange, "You'll soon be reunited with your family!", true);
+                    CombatText.NewText(NPC.getRect(), Color.Orange, "You'll soon be reunited with your family!", true);
                 }
                 else
                 {
-                    CombatText.NewText(npc.getRect(), Color.Orange, "But it will only get harder from here.", true);
+                    CombatText.NewText(NPC.getRect(), Color.Orange, "But it will only get harder from here.", true);
                 }
 
                 drawEyeTrail = true;
@@ -461,61 +480,61 @@ namespace DeathsTerminus.NPCs.CataBoss
             }
 
             //transition animation
-            if (npc.ai[1] >= 180 && npc.ai[1] < 299)
+            if (NPC.ai[1] >= 180 && NPC.ai[1] < 299)
             {
-                npc.velocity = Vector2.Zero;
+                NPC.velocity = Vector2.Zero;
 
                 drawSpawnTransitionRing = true;
             }
             else
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
 
                 FlyToPoint(goalPosition, Vector2.Zero);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 300)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 300)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void Phase2To3Animation()
         {
             //Pre-animation and text
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
             spawnTransitionColor = Color.LightBlue;
 
-            if (npc.ai[1] == 120)
+            if (NPC.ai[1] == 120)
             {
-                if (npc.localAI[0] == 0)
+                if (NPC.localAI[0] == 0)
                 {
-                    CombatText.NewText(npc.getRect(), Color.Orange, "Why do you insist on prolonging this?", true);
+                    CombatText.NewText(NPC.getRect(), Color.Orange, "Why do you insist on prolonging this?", true);
                 }
                 else
                 {
-                    CombatText.NewText(npc.getRect(), Color.Orange, "You're making good progress so far.", true);
+                    CombatText.NewText(NPC.getRect(), Color.Orange, "You're making good progress so far.", true);
                 }
             }
-            else if (npc.ai[1] == 180)
+            else if (NPC.ai[1] == 180)
             {
-                Main.PlaySound(SoundID.Zombie, npc.Center, 105);
+                SoundEngine.PlaySound(SoundID.Zombie105, NPC.Center);
             }
-            else if (npc.ai[1] == 299)
+            else if (NPC.ai[1] == 299)
             {
-                if (npc.localAI[0] == 0)
+                if (NPC.localAI[0] == 0)
                 {
-                    CombatText.NewText(npc.getRect(), Color.LightBlue, "You weren't meant to retaliate!", true);
+                    CombatText.NewText(NPC.getRect(), Color.LightBlue, "You weren't meant to retaliate!", true);
                 }
                 else
                 {
-                    CombatText.NewText(npc.getRect(), Color.LightBlue, "Let's see if you've got what it takes.", true);
+                    CombatText.NewText(NPC.getRect(), Color.LightBlue, "Let's see if you've got what it takes.", true);
                 }
 
                 drawAura = true;
@@ -526,81 +545,84 @@ namespace DeathsTerminus.NPCs.CataBoss
             }
 
             //transition animation
-            if (npc.ai[1] >= 180 && npc.ai[1] < 299)
+            if (NPC.ai[1] >= 180 && NPC.ai[1] < 299)
             {
-                npc.velocity = Vector2.Zero;
+                NPC.velocity = Vector2.Zero;
 
                 drawSpawnTransitionRing = true;
             }
             else
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
 
                 FlyToPoint(goalPosition, Vector2.Zero);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 300)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 300)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void Phase3To4Animation()
         {
             //Pre-animation and text
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            npc.dontTakeDamage = true;
+            NPC.dontTakeDamage = true;
             useRainbowColorTransition = true;
 
-            if (npc.ai[1] >= 240 && npc.localAI[0] != 0)
+            if (NPC.ai[1] >= 240 && NPC.localAI[0] != 0)
             {
                 iceShieldCooldown += 2;
             }
 
-            if (npc.ai[1] == 120)
+            if (NPC.ai[1] == 120)
             {
-                if (npc.localAI[0] == 0)
+                if (NPC.localAI[0] == 0)
                 {
-                    CombatText.NewText(npc.getRect(), Color.LightBlue, "This isn't right, you're supposed to be dead!", true);
+                    CombatText.NewText(NPC.getRect(), Color.LightBlue, "This isn't right, you're supposed to be dead!", true);
                 }
                 else
                 {
-                    CombatText.NewText(npc.getRect(), Color.LightBlue, "That's it, this has taken long enough.", true);
+                    CombatText.NewText(NPC.getRect(), Color.LightBlue, "That's it, this has taken long enough.", true);
                 }
             }
-            else if (npc.ai[1] == 180)
+            else if (NPC.ai[1] == 180)
             {
-                Main.PlaySound(SoundID.Zombie, npc.Center, 105);
+                SoundEngine.PlaySound(SoundID.Zombie105, NPC.Center);
             }
-            else if (npc.ai[1] == 299)
+            else if (NPC.ai[1] == 299)
             {
-                if (npc.localAI[0] == 0)
+                if (NPC.localAI[0] == 0)
                 {
-                    CombatText.NewText(npc.getRect(), Color.White, "I can't keep this form up much longer!", true);
+                    CombatText.NewText(NPC.getRect(), Color.White, "I can't keep this form up much longer!", true);
 
                     for (int i = 0; i < 64; i++)
                     {
-                        Dust.NewDustDirect(npc.position, npc.width, npc.height, ModContent.DustType<ShadowDust>(), Scale: 2).velocity = new Vector2((float)Math.Sin(Main.rand.NextFloat() * MathHelper.Pi / 2f) * 4f, 0).RotatedByRandom(MathHelper.TwoPi);
+                        Dust.NewDustDirect(NPC.position, NPC.width, NPC.height, ModContent.DustType<ShadowDust>(), Scale: 2).velocity = new Vector2((float)Math.Sin(Main.rand.NextFloat() * MathHelper.Pi / 2f) * 4f, 0).RotatedByRandom(MathHelper.TwoPi);
                     }
 
-                    Main.PlaySound(SoundID.DoubleJump, npc.Center);
+                    SoundEngine.PlaySound(SoundID.DoubleJump, NPC.Center);
                 }
                 else
                 {
-                    CombatText.NewText(npc.getRect(), Color.White, "That wasn't meant to happen. Shadow, assistance?", true);
+                    CombatText.NewText(NPC.getRect(), Color.White, "That wasn't meant to happen. Shadow, assistance?", true);
 
-                    Main.PlaySound(SoundID.Item27, npc.Center);
+                    SoundEngine.PlaySound(SoundID.Item27, NPC.Center);
 
-                    for (int i = 0; i < 6; i++)
+                    if (Main.netMode != NetmodeID.Server)
                     {
-                        Gore.NewGorePerfect(npc.Center - new Vector2(12, 35), new Vector2(6, 0).RotatedBy(i * MathHelper.TwoPi / 6), mod.GetGoreSlot("Gores/CataBossIceShard"));
-                        Gore.NewGorePerfect(npc.Center - new Vector2(12, 35), new Vector2(3, 0).RotatedBy((i + 0.5f) * MathHelper.TwoPi / 6), mod.GetGoreSlot("Gores/CataBossIceShard"));
+                        for (int i = 0; i < 6; i++)
+                        {
+                            Gore.NewGorePerfect(NPC.GetSource_FromThis(), NPC.Center - new Vector2(12, 35), new Vector2(6, 0).RotatedBy(i * MathHelper.TwoPi / 6), ModContent.Find<ModGore>("DeathsTerminus/CataBossIceShard").Type);
+                            Gore.NewGorePerfect(NPC.GetSource_FromThis(), NPC.Center - new Vector2(12, 35), new Vector2(3, 0).RotatedBy((i + 0.5f) * MathHelper.TwoPi / 6), ModContent.Find<ModGore>("DeathsTerminus/CataBossIceShard").Type);
+                        }
                     }
                 }
 
@@ -611,261 +633,261 @@ namespace DeathsTerminus.NPCs.CataBoss
             }
 
             //transition animation
-            if (npc.ai[1] >= 180 && npc.ai[1] < 299)
+            if (NPC.ai[1] >= 180 && NPC.ai[1] < 299)
             {
-                npc.velocity = Vector2.Zero;
+                NPC.velocity = Vector2.Zero;
 
                 drawSpawnTransitionRing = true;
             }
             else
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
 
                 FlyToPoint(goalPosition, Vector2.Zero);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 300)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 300)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void DeathAnimation()
         {
-            if (npc.localAI[0] == 0)
+            if (NPC.localAI[0] == 0)
             {
                 //Pre-animation and text
-                Player player = Main.player[npc.target];
+                Player player = Main.player[NPC.target];
 
-                Dust.NewDust(npc.position, npc.width, npc.height, ModContent.DustType<ShadowDust>());
+                Dust.NewDust(NPC.position, NPC.width, NPC.height, ModContent.DustType<ShadowDust>());
 
-                if (npc.ai[1] == 120)
+                if (NPC.ai[1] == 120)
                 {
-                    CombatText.NewText(npc.getRect(), Color.White, "How... how did this happen...", true);
+                    CombatText.NewText(NPC.getRect(), Color.White, "How... how did this happen...", true);
                 }
-                else if (npc.ai[1] == 240)
+                else if (NPC.ai[1] == 240)
                 {
-                    CombatText.NewText(npc.getRect(), Color.White, "I can't contain this form any longer...", true);
+                    CombatText.NewText(NPC.getRect(), Color.White, "I can't contain this form any longer...", true);
                 }
-                else if (npc.ai[1] == 360)
+                else if (NPC.ai[1] == 360)
                 {
-                    CombatText.NewText(npc.getRect(), Color.White, "I guess it's time we fight for real.", true);
+                    CombatText.NewText(NPC.getRect(), Color.White, "I guess it's time we fight for real.", true);
                 }
-                else if (npc.ai[1] == 480)
+                else if (NPC.ai[1] == 480)
                 {
-                    CombatText.NewText(npc.getRect(), Color.White, "I'll be waiting.", true);
+                    CombatText.NewText(NPC.getRect(), Color.White, "I'll be waiting.", true);
                 }
 
                 //death animation
-                if (npc.ai[1] >= 60)
+                if (NPC.ai[1] >= 60)
                 {
-                    npc.velocity = Vector2.Zero;
+                    NPC.velocity = Vector2.Zero;
                 }
                 else
                 {
-                    if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                        npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                    npc.spriteDirection = npc.direction;
-                    Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 240;
+                    if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                        NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                    NPC.spriteDirection = NPC.direction;
+                    Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 240;
 
                     FlyToPoint(goalPosition, Vector2.Zero);
                 }
 
-                npc.ai[1]++;
-                if (npc.ai[1] == 600)
+                NPC.ai[1]++;
+                if (NPC.ai[1] == 600)
                 {
                     for (int i = 0; i < 256; i++)
                     {
-                        Dust.NewDustDirect(npc.position, npc.width, npc.height, ModContent.DustType<ShadowDust>(), Scale: 2).velocity = new Vector2((float)Math.Sin(Main.rand.NextFloat() * MathHelper.Pi / 2f) * 8f, 0).RotatedByRandom(MathHelper.TwoPi);
+                        Dust.NewDustDirect(NPC.position, NPC.width, NPC.height, ModContent.DustType<ShadowDust>(), Scale: 2).velocity = new Vector2((float)Math.Sin(Main.rand.NextFloat() * MathHelper.Pi / 2f) * 8f, 0).RotatedByRandom(MathHelper.TwoPi);
                     }
 
                     Main.LocalPlayer.GetModPlayer<DTPlayer>().screenShakeTime = 60;
-                    Main.PlaySound(SoundID.DoubleJump, npc.Center);
+                    SoundEngine.PlaySound(SoundID.DoubleJump, NPC.Center);
 
-                    npc.ai[1] = 0;
-                    npc.ai[0]++;
+                    NPC.ai[1] = 0;
+                    NPC.ai[0]++;
                 }
             }
             else
             {
                 //Pre-animation and text
-                Player player = Main.player[npc.target];
+                Player player = Main.player[NPC.target];
 
-                if (npc.ai[1] == 60 && Main.netMode != 1)
+                if (NPC.ai[1] == 60 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
                     Vector2 shotSpeed = new Vector2(0, 12).RotatedByRandom(0.5f);
-                    Projectile.NewProjectile(npc.Center - 180 * shotSpeed, shotSpeed, ModContent.ProjectileType<CataBossStar>(), 0, 0f, Main.myPlayer);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center - 180 * shotSpeed, shotSpeed, ModContent.ProjectileType<CataBossStar>(), 0, 0f, Main.myPlayer);
                 }
 
-                if (npc.ai[1] == 120)
+                if (NPC.ai[1] == 120)
                 {
-                    CombatText.NewText(npc.getRect(), Color.White, "Well, that was fun. I sure hope my current vulnerability won't suddenly become an issue.", true);
+                    CombatText.NewText(NPC.getRect(), Color.White, "Well, that was fun. I sure hope my current vulnerability won't suddenly become an issue.", true);
                 }
 
                 //death animation
-                if (npc.ai[1] >= 60)
+                if (NPC.ai[1] >= 60)
                 {
-                    npc.velocity = Vector2.Zero;
+                    NPC.velocity = Vector2.Zero;
                 }
                 else
                 {
-                    if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                        npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                    npc.spriteDirection = npc.direction;
-                    Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 240;
+                    if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                        NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                    NPC.spriteDirection = NPC.direction;
+                    Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 240;
 
                     FlyToPoint(goalPosition, Vector2.Zero);
                 }
 
-                npc.ai[1]++;
-                if (npc.ai[1] == 240)
+                NPC.ai[1]++;
+                if (NPC.ai[1] == 240)
                 {
-                    npc.ai[1] = 0;
-                    npc.ai[0]++;
+                    NPC.ai[1] = 0;
+                    NPC.ai[0]++;
                 }
             }
         }
 
         private void ShadowCataFleeAnimation()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.localAI[1] < 60)
+            if (NPC.localAI[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 240;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 240;
 
                 FlyToPoint(goalPosition, Vector2.Zero);
             }
-            else if (npc.localAI[1] < 120)
+            else if (NPC.localAI[1] < 120)
             {
-                npc.velocity = Vector2.Zero;
-                if (npc.localAI[1] == 60)
+                NPC.velocity = Vector2.Zero;
+                if (NPC.localAI[1] == 60)
                 {
-                    Main.PlaySound(SoundID.Zombie, npc.Center, 105);
+                    SoundEngine.PlaySound(SoundID.Zombie105, NPC.Center);
                 }
             }
             else
             {
-                npc.velocity.Y -= 0.3f;
+                NPC.velocity.Y -= 0.3f;
             }
 
-            npc.localAI[1]++;
-            if (npc.localAI[1] == 240)
+            NPC.localAI[1]++;
+            if (NPC.localAI[1] == 240)
             {
-                npc.active = false;
+                NPC.active = false;
             }
         }
 
         //3 secs
         private void SideScythesAttack()
         {
-            Player player = Main.player[npc.target];
-            if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-            npc.spriteDirection = npc.direction;
-            Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 240;
+            Player player = Main.player[NPC.target];
+            if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+            NPC.spriteDirection = NPC.direction;
+            Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 240;
 
             FlyToPoint(goalPosition, Vector2.Zero);
 
-            if (npc.ai[1] >= 60 && npc.ai[1] % 10 == 0 && Main.netMode != 1)
+            if (NPC.ai[1] >= 60 && NPC.ai[1] % 10 == 0 && Main.netMode != NetmodeID.MultiplayerClient)
             {
                 int numShots = 8;
                 for (int i = 0; i < numShots; i++)
                 {
-                    Projectile.NewProjectile(npc.Center, new Vector2(1, 0).RotatedBy(i * MathHelper.TwoPi / numShots) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, new Vector2(1, 0).RotatedBy(i * MathHelper.TwoPi / numShots) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer);
 
-                    Vector2 targetPoint = npc.Center + new Vector2(800, 0).RotatedBy(i * MathHelper.TwoPi / numShots);
+                    Vector2 targetPoint = NPC.Center + new Vector2(800, 0).RotatedBy(i * MathHelper.TwoPi / numShots);
                     Vector2 launchPoint = targetPoint + new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2);
-                    Projectile.NewProjectile(launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
                     launchPoint = targetPoint - new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2);
-                    Projectile.NewProjectile(launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
                 }
             }
 
-            if (npc.ai[1] >= 60 && npc.ai[1] % 10 == 0)
+            if (NPC.ai[1] >= 60 && NPC.ai[1] % 10 == 0)
             {
-                Main.PlaySound(SoundID.Item8, npc.Center);
+                SoundEngine.PlaySound(SoundID.Item8, NPC.Center);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 180)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 180)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         //7 secs 20 ticks
         private void SideScythesAttackSpin()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-            npc.spriteDirection = npc.direction;
-            Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 240;
+            if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+            NPC.spriteDirection = NPC.direction;
+            Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 240;
 
             FlyToPoint(goalPosition, Vector2.Zero);
 
-            if (npc.ai[1] >= 60 && npc.ai[1] < 220 && npc.ai[1] % 10 == 0 && Main.netMode != 1)
+            if (NPC.ai[1] >= 60 && NPC.ai[1] < 220 && NPC.ai[1] % 10 == 0 && Main.netMode != NetmodeID.MultiplayerClient)
             {
                 int numShots = 8;
                 for (int i = 0; i < numShots; i++)
                 {
-                    Projectile.NewProjectile(npc.Center, new Vector2(1, 0).RotatedBy(i * MathHelper.TwoPi / numShots + npc.direction * (npc.ai[1] - 60) / 100f) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, new Vector2(1, 0).RotatedBy(i * MathHelper.TwoPi / numShots + NPC.direction * (NPC.ai[1] - 60) / 100f) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer);
 
-                    Vector2 targetPoint = npc.Center + new Vector2(800, 0).RotatedBy(i * MathHelper.TwoPi / numShots + npc.direction * (npc.ai[1] - 60) / 100f);
-                    Vector2 launchPoint = targetPoint + new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2 + npc.direction * (npc.ai[1] - 60) / 100f);
-                    Projectile.NewProjectile(launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
-                    launchPoint = targetPoint - new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2 + npc.direction * (npc.ai[1] - 60) / 100f);
-                    Projectile.NewProjectile(launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
+                    Vector2 targetPoint = NPC.Center + new Vector2(800, 0).RotatedBy(i * MathHelper.TwoPi / numShots + NPC.direction * (NPC.ai[1] - 60) / 100f);
+                    Vector2 launchPoint = targetPoint + new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2 + NPC.direction * (NPC.ai[1] - 60) / 100f);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
+                    launchPoint = targetPoint - new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2 + NPC.direction * (NPC.ai[1] - 60) / 100f);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
                 }
             }
-            else if (npc.ai[1] >= 280 && npc.ai[1] < 440 && npc.ai[1] % 10 == 0 && Main.netMode != 1)
+            else if (NPC.ai[1] >= 280 && NPC.ai[1] < 440 && NPC.ai[1] % 10 == 0 && Main.netMode != NetmodeID.MultiplayerClient)
             {
                 int numShots = 8;
                 for (int i = 0; i < numShots; i++)
                 {
-                    Projectile.NewProjectile(npc.Center, new Vector2(1, 0).RotatedBy(i * MathHelper.TwoPi / numShots - npc.direction * (npc.ai[1] - 280) / 100f) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, new Vector2(1, 0).RotatedBy(i * MathHelper.TwoPi / numShots - NPC.direction * (NPC.ai[1] - 280) / 100f) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer);
 
-                    Vector2 targetPoint = npc.Center + new Vector2(800, 0).RotatedBy(i * MathHelper.TwoPi / numShots - npc.direction * (npc.ai[1] - 280) / 100f);
-                    Vector2 launchPoint = targetPoint + new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2 - npc.direction * (npc.ai[1] - 280) / 100f);
-                    Projectile.NewProjectile(launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
-                    launchPoint = targetPoint - new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2 - npc.direction * (npc.ai[1] - 280) / 100f);
-                    Projectile.NewProjectile(launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
+                    Vector2 targetPoint = NPC.Center + new Vector2(800, 0).RotatedBy(i * MathHelper.TwoPi / numShots - NPC.direction * (NPC.ai[1] - 280) / 100f);
+                    Vector2 launchPoint = targetPoint + new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2 - NPC.direction * (NPC.ai[1] - 280) / 100f);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
+                    launchPoint = targetPoint - new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2 - NPC.direction * (NPC.ai[1] - 280) / 100f);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f);
                 }
             }
 
-            if (((npc.ai[1] >= 60 && npc.ai[1] < 220) || (npc.ai[1] >= 280 && npc.ai[1] < 440)) && npc.ai[1] % 10 == 0)
+            if (((NPC.ai[1] >= 60 && NPC.ai[1] < 220) || (NPC.ai[1] >= 280 && NPC.ai[1] < 440)) && NPC.ai[1] % 10 == 0)
             {
-                Main.PlaySound(SoundID.Item8, npc.Center);
+                SoundEngine.PlaySound(SoundID.Item8, NPC.Center);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 440)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 440)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         //4 secs 20 ticks
         private void SideBlastsAttack()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-            npc.spriteDirection = npc.direction;
-            Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 480;
+            if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+            NPC.spriteDirection = NPC.direction;
+            Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 480;
 
             FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.4f, maxYAcc: 0.4f);
 
@@ -874,125 +896,125 @@ namespace DeathsTerminus.NPCs.CataBoss
             float shotSpeed = 0.5f;
             float shotDistanceFromPlayer = 200;
 
-            if (npc.ai[1] >= 60 && npc.ai[1] % shotPeriod == 60 % shotPeriod && Main.netMode != 1)
+            if (NPC.ai[1] >= 60 && NPC.ai[1] % shotPeriod == 60 % shotPeriod && Main.netMode != NetmodeID.MultiplayerClient)
             {
-                float angleRatio = shotDistanceFromPlayer / (player.Center - npc.Center).Length();
+                float angleRatio = shotDistanceFromPlayer / (player.Center - NPC.Center).Length();
                 if (angleRatio > 1)
                 {
                     angleRatio = 1;
                 }
 
-                int direction = npc.ai[1] % (shotPeriod * 2) == 60 % (shotPeriod * 2) ? 1 : -1;
-                Vector2 shotVelocity = (player.Center - npc.Center).SafeNormalize(Vector2.Zero).RotatedBy(direction * Math.Asin(angleRatio)) * shotSpeed;
+                int direction = NPC.ai[1] % (shotPeriod * 2) == 60 % (shotPeriod * 2) ? 1 : -1;
+                Vector2 shotVelocity = (player.Center - NPC.Center).SafeNormalize(Vector2.Zero).RotatedBy(direction * Math.Asin(angleRatio)) * shotSpeed;
 
-                Projectile.NewProjectile(npc.Center, shotVelocity, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer);
-                Projectile.NewProjectile(npc.Center, -shotVelocity, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer);
+                Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, shotVelocity, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer);
+                Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, -shotVelocity, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer);
             }
 
-            if (npc.ai[1] >= 90 && npc.ai[1] % shotPeriod == 90 % shotPeriod)
+            if (NPC.ai[1] >= 90 && NPC.ai[1] % shotPeriod == 90 % shotPeriod)
             {
-                Main.PlaySound(SoundID.Item71, npc.Center);
+                SoundEngine.PlaySound(SoundID.Item71, NPC.Center);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 60 + shotPeriod * numShots)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 60 + shotPeriod * numShots)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         //8 secs
         private void IceSpiralAttack()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.5f, maxYAcc: 0.5f);
             }
             else
             {
-                npc.velocity = Vector2.Zero;
+                NPC.velocity = Vector2.Zero;
 
-                if (npc.ai[1] == 60 && Main.netMode != 1)
+                if (NPC.ai[1] == 60 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<IceShield>(), 80, 0f, Main.myPlayer);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<IceShield>(), 80, 0f, Main.myPlayer);
                     for (int i = -1; i <= 1; i++)
                     {
-                        Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<RotatingIceShards>(), 80, 0f, Main.myPlayer, ai0: i);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<RotatingIceShards>(), 80, 0f, Main.myPlayer, ai0: i);
                     }
                 }
 
-                if (npc.ai[1] == 60)
+                if (NPC.ai[1] == 60)
                 {
-                    Main.PlaySound(29, npc.Center, 88);
+                    SoundEngine.PlaySound(SoundID.Zombie88, NPC.Center);
                 }
-                if (npc.ai[1] == 120)
+                if (NPC.ai[1] == 120)
                 {
-                    Main.PlaySound(SoundID.Item120, npc.Center);
+                    SoundEngine.PlaySound(SoundID.Item120, NPC.Center);
                 }
 
-                if (npc.ai[1] % 10 == 0 && npc.ai[1] < 360 && Main.netMode != 1)
+                if (NPC.ai[1] % 10 == 0 && NPC.ai[1] < 360 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: 1);
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: -1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: 1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: -1);
                 }
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 480)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 480)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         //2 secs 48 ticks
         private void ShieldBonk()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
             holdingShield = true;
 
-            if (npc.ai[1] % 84 < 60)
+            if (NPC.ai[1] % 84 < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 180;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 180;
 
                 FlyToPoint(goalPosition, player.velocity, 0.8f, 0.8f);
             }
-            else if (npc.ai[1] % 84 == 60)
+            else if (NPC.ai[1] % 84 == 60)
             {
                 canShieldBonk = true;
 
-                npc.width = 40;
-                npc.position.X -= 11;
+                NPC.width = 40;
+                NPC.position.X -= 11;
 
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                npc.velocity.X += npc.direction * 15;
-                npc.velocity.Y /= 2;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                NPC.velocity.X += NPC.direction * 15;
+                NPC.velocity.Y /= 2;
             }
-            else if (npc.ai[1] % 84 == 83)
+            else if (NPC.ai[1] % 84 == 83)
             {
                 if (canShieldBonk)
                 {
-                    npc.width = 18;
-                    npc.position.X += 11;
+                    NPC.width = 18;
+                    NPC.position.X += 11;
                 }
 
                 canShieldBonk = false;
 
-                npc.velocity.X -= npc.direction * 15;
+                NPC.velocity.X -= NPC.direction * 15;
             }
 
             //custom stuff for player EoC shield bonks
@@ -1004,18 +1026,18 @@ namespace DeathsTerminus.NPCs.CataBoss
                     if (Main.player[i].active && !Main.player[i].dead && Main.player[i].dash == 2 && Main.player[i].eocDash > 0 && Main.player[i].eocHit < 0)
                     {
                         Rectangle shieldHitbox = new Rectangle((int)((double)Main.player[i].position.X + (double)Main.player[i].velocity.X * 0.5 - 4.0), (int)((double)Main.player[i].position.Y + (double)Main.player[i].velocity.Y * 0.5 - 4.0), Main.player[i].width + 8, Main.player[i].height + 8);
-                        if (shieldHitbox.Intersects(npc.getRect()))
+                        if (shieldHitbox.Intersects(NPC.getRect()))
                         {
                             //custom stuff for player EoC shield bonks
                             //adapted from how the player detects SoC collision
-                            npc.width = 18;
-                            npc.position.X += 11;
+                            NPC.width = 18;
+                            NPC.position.X += 11;
 
-                            npc.direction *= -1;
-                            npc.velocity.X += npc.direction * 30;
+                            NPC.direction *= -1;
+                            NPC.velocity.X += NPC.direction * 30;
                             canShieldBonk = false;
 
-                            Main.PlaySound(SoundID.NPCHit4, npc.Center);
+                            SoundEngine.PlaySound(SoundID.NPCHit4, NPC.Center);
 
                             //redo the player's SoC bounce motion
                             int num40 = Main.player[i].direction;
@@ -1042,126 +1064,126 @@ namespace DeathsTerminus.NPCs.CataBoss
                 }
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 168)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 168)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void SlimeBonk()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
                 Vector2 goalPosition = player.Center + new Vector2(0, -1) * 360;
 
                 FlyToPoint(goalPosition, player.velocity, 3f, 1f);
             }
             else
             {
-                if (npc.ai[1] == 60)
+                if (NPC.ai[1] == 60)
                 {
-                    Main.PlaySound(SoundID.Item81, npc.Center);
+                    SoundEngine.PlaySound(SoundID.Item81, NPC.Center);
 
                     onSlimeMount = true;
 
-                    if (npc.velocity.Y < 0) npc.velocity.Y /= 2;
-                    npc.velocity.X = player.velocity.X;
+                    if (NPC.velocity.Y < 0) NPC.velocity.Y /= 2;
+                    NPC.velocity.X = player.velocity.X;
 
-                    npc.width = 40;
-                    npc.position.X -= 11;
-                    npc.height = 64;
-                    drawOffsetY = -15;
+                    NPC.width = 40;
+                    NPC.position.X -= 11;
+                    NPC.height = 64;
+                    DrawOffsetY = -15;
 
                     //mount dusts from slime mount
                     for (int i = 0; i < 100; i++)
                     {
-                        int num2 = Dust.NewDust(new Vector2(npc.position.X - 20f, npc.position.Y), npc.width + 40, npc.height, 56);
+                        int num2 = Dust.NewDust(new Vector2(NPC.position.X - 20f, NPC.position.Y), NPC.width + 40, NPC.height, DustID.BlueFairy);
                         Main.dust[num2].scale += (float)Main.rand.Next(-10, 21) * 0.01f;
                         Main.dust[num2].noGravity = true;
                         Dust obj2 = Main.dust[num2];
-                        obj2.velocity += npc.velocity * 0.8f;
+                        obj2.velocity += NPC.velocity * 0.8f;
                     }
                 }
                 else if (onSlimeMount)
                 {
-                    if (npc.ai[1] < 119 && (npc.velocity.Y < 0 || npc.Hitbox.Top - 300 < player.Hitbox.Bottom))
+                    if (NPC.ai[1] < 119 && (NPC.velocity.Y < 0 || NPC.Hitbox.Top - 300 < player.Hitbox.Bottom))
                     {
-                        npc.velocity.Y += 0.9f;
+                        NPC.velocity.Y += 0.9f;
 
                         FlyToPoint(player.Center, player.velocity, 0.05f, 0f);
                     }
                     else
                     {
-                        npc.velocity = player.velocity;
+                        NPC.velocity = player.velocity;
                         onSlimeMount = false;
 
-                        npc.width = 18;
-                        npc.position.X += 11;
-                        npc.height = 40;
-                        drawOffsetY = -5;
+                        NPC.width = 18;
+                        NPC.position.X += 11;
+                        NPC.height = 40;
+                        DrawOffsetY = -5;
                     }
                 }
                 else
                 {
-                    npc.velocity *= 0.98f;
+                    NPC.velocity *= 0.98f;
                 }
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 120)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 120)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void MothsAndLampAttack()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 1080;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 1080;
 
                 FlyToPoint(goalPosition, player.velocity, 0.8f, 0.8f);
             }
             else
             {
-                if (npc.ai[1] == 60)
+                if (NPC.ai[1] == 60)
                 {
-                    npc.ai[2] = npc.Center.X;
-                    npc.ai[3] = npc.Center.Y;
-                    
-                    Main.PlaySound(SoundID.Zombie, npc.Center + new Vector2(npc.direction, 0) * 1500, 104);
+                    NPC.ai[2] = NPC.Center.X;
+                    NPC.ai[3] = NPC.Center.Y;
+
+                    SoundEngine.PlaySound(SoundID.Zombie104, NPC.Center + new Vector2(NPC.direction, 0) * 1500);
                     Main.LocalPlayer.GetModPlayer<DTPlayer>().screenShakeTime = 60;
 
-                    if (Main.netMode != 1)
+                    if (Main.netMode != NetmodeID.MultiplayerClient)
                     {
-                        Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<SigilArena>(), 80, 0f, Main.myPlayer, ai0: 600);
-                        Projectile.NewProjectile(npc.Center + new Vector2(npc.direction, 0) * 1500, new Vector2(-npc.direction * 5, 0), ModContent.ProjectileType<SunLamp>(), 80, 0f, Main.myPlayer);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<SigilArena>(), 80, 0f, Main.myPlayer, ai0: 600);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center + new Vector2(NPC.direction, 0) * 1500, new Vector2(-NPC.direction * 5, 0), ModContent.ProjectileType<SunLamp>(), 80, 0f, Main.myPlayer);
                     }
                 }
 
-                if (Main.netMode != 1 && npc.ai[1] >= 90 && npc.ai[1] <= 480 && npc.ai[1] % 4 == 0)
+                if (Main.netMode != NetmodeID.MultiplayerClient && NPC.ai[1] >= 90 && NPC.ai[1] <= 480 && NPC.ai[1] % 4 == 0)
                 {
-                    Vector2 arenaCenter = new Vector2(npc.ai[2], npc.ai[3]);
+                    Vector2 arenaCenter = new Vector2(NPC.ai[2], NPC.ai[3]);
 
                     //ray X position
-                    float relativeRayPosition = npc.direction * 1500 - npc.direction * 5 * (npc.ai[1] + 30 - 60);
+                    float relativeRayPosition = NPC.direction * 1500 - NPC.direction * 5 * (NPC.ai[1] + 30 - 60);
 
                     //angle of the arena still available
                     float availableAngle = (float)Math.Acos(relativeRayPosition / 1200f);
-                    if (npc.direction == 1)
+                    if (NPC.direction == 1)
                     {
                         availableAngle = MathHelper.Pi - availableAngle;
                     }
@@ -1172,160 +1194,160 @@ namespace DeathsTerminus.NPCs.CataBoss
 
                     float availableHeight = (float)Math.Sqrt(1200f * 1200f - relativeRayPosition * relativeRayPosition);
 
-                    float shotAngle = -npc.direction * availableAngle * ((npc.ai[1] / 1.618f / 4 % 1) * 2 - 1);
-                    float goalHeight = arenaCenter.Y + -npc.direction * shotAngle / availableAngle * availableHeight;
+                    float shotAngle = -NPC.direction * availableAngle * ((NPC.ai[1] / 1.618f / 4 % 1) * 2 - 1);
+                    float goalHeight = arenaCenter.Y + -NPC.direction * shotAngle / availableAngle * availableHeight;
 
-                    Projectile.NewProjectile(arenaCenter + new Vector2(-1800f * npc.direction, 0f).RotatedBy(shotAngle), new Vector2(32f * npc.direction, 0).RotatedBy(shotAngle), ModContent.ProjectileType<BabyMothronProjectile>(), 80, 0f, Main.myPlayer, ai0: goalHeight, ai1: npc.direction * 1500 - npc.direction * 5 * (npc.ai[1] - 60) + arenaCenter.X);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), arenaCenter + new Vector2(-1800f * NPC.direction, 0f).RotatedBy(shotAngle), new Vector2(32f * NPC.direction, 0).RotatedBy(shotAngle), ModContent.ProjectileType<BabyMothronProjectile>(), 80, 0f, Main.myPlayer, ai0: goalHeight, ai1: NPC.direction * 1500 - NPC.direction * 5 * (NPC.ai[1] - 60) + arenaCenter.X);
                 }
 
-                Vector2 goalPosition = new Vector2(npc.ai[2], npc.ai[3]) + new Vector2(-npc.direction, 0) * 1080;
+                Vector2 goalPosition = new Vector2(NPC.ai[2], NPC.ai[3]) + new Vector2(-NPC.direction, 0) * 1080;
 
                 FlyToPoint(goalPosition, Vector2.Zero, 0.25f, 0.25f);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 600)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 600)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void HeavenPetAttack()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] == 0 && Main.netMode != 1)
+            if (NPC.ai[1] == 0 && Main.netMode != NetmodeID.MultiplayerClient)
             {
-                int proj = Projectile.NewProjectile(npc.Center, (player.Center - npc.Center).SafeNormalize(Vector2.Zero) * -6f, ModContent.ProjectileType<HeavenPetProjectile>(), 80, 0f, Main.myPlayer, ai0: npc.whoAmI);
-                Main.projectile[proj].localAI[1] = npc.localAI[0];
+                int proj = Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, (player.Center - NPC.Center).SafeNormalize(Vector2.Zero) * -6f, ModContent.ProjectileType<HeavenPetProjectile>(), 80, 0f, Main.myPlayer, ai0: NPC.whoAmI);
+                Main.projectile[proj].localAI[1] = NPC.localAI[0];
             }
 
-            if (npc.ai[1] < 600)
+            if (NPC.ai[1] < 600)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.5f, maxYAcc: 0.5f);
             }
 
-            if (npc.ai[1] % 15 == 0 && npc.ai[1] > 60)
+            if (NPC.ai[1] % 15 == 0 && NPC.ai[1] > 60)
             {
-                Main.PlaySound(SoundID.Item8, npc.Center);
+                SoundEngine.PlaySound(SoundID.Item8, NPC.Center);
 
-                if (Main.netMode != 1)
-                    Projectile.NewProjectile(npc.Center, (player.Center - npc.Center).SafeNormalize(Vector2.Zero) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer);
+                if (Main.netMode != NetmodeID.MultiplayerClient)
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, (player.Center - NPC.Center).SafeNormalize(Vector2.Zero) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 600)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 600)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         //7 secs 20 ticks
         private void SideScythesAttackHard()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 360;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 360;
 
                 FlyToPoint(goalPosition, Vector2.Zero);
             }
             else
             {
-                npc.spriteDirection = player.Center.X > npc.Center.X ? 1 : -1;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
+                NPC.spriteDirection = player.Center.X > NPC.Center.X ? 1 : -1;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
 
                 FlyToPoint(goalPosition, Vector2.Zero);
             }
 
-            if (npc.ai[1] >= 60 && npc.ai[1] < 440 && npc.ai[1] % 5 == 0 && Main.netMode != 1)
+            if (NPC.ai[1] >= 60 && NPC.ai[1] < 440 && NPC.ai[1] % 5 == 0 && Main.netMode != NetmodeID.MultiplayerClient)
             {
                 int numShots = 12;
                 for (int i = 0; i < numShots; i++)
                 {
-                    float rotationValue = -npc.direction * MathHelper.Pi / 2f * ((float)Math.Cos((npc.ai[1] - 60) / 380f * MathHelper.TwoPi) - 1) / 2f;
+                    float rotationValue = -NPC.direction * MathHelper.Pi / 2f * ((float)Math.Cos((NPC.ai[1] - 60) / 380f * MathHelper.TwoPi) - 1) / 2f;
 
-                    Projectile.NewProjectile(npc.Center, new Vector2(1, 0).RotatedBy(i * MathHelper.TwoPi / numShots + rotationValue) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, new Vector2(1, 0).RotatedBy(i * MathHelper.TwoPi / numShots + rotationValue) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
 
-                    if (npc.ai[1] % 10 == 0)
+                    if (NPC.ai[1] % 10 == 0)
                     {
-                        Vector2 targetPoint = npc.Center + new Vector2(800, 0).RotatedBy(i * MathHelper.TwoPi / numShots + rotationValue);
+                        Vector2 targetPoint = NPC.Center + new Vector2(800, 0).RotatedBy(i * MathHelper.TwoPi / numShots + rotationValue);
                         Vector2 launchPoint = targetPoint + new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2 + rotationValue);
-                        Projectile.NewProjectile(launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f, ai1: 1);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f, ai1: 1);
                         launchPoint = targetPoint - new Vector2(1920, 0).RotatedBy(i * MathHelper.TwoPi / numShots + MathHelper.PiOver2 + rotationValue);
-                        Projectile.NewProjectile(launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f, ai1: 1);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), launchPoint, (targetPoint - launchPoint).SafeNormalize(Vector2.Zero) * 30f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai0: 120f, ai1: 1);
                     }
                 }
             }
 
-            if ((npc.ai[1] >= 60 && npc.ai[1] < 440) && npc.ai[1] % 10 == 0)
+            if ((NPC.ai[1] >= 60 && NPC.ai[1] < 440) && NPC.ai[1] % 10 == 0)
             {
-                Main.PlaySound(SoundID.Item8, npc.Center);
+                SoundEngine.PlaySound(SoundID.Item8, NPC.Center);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 440)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 440)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void SideSuperScythesAttack()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
             }
-            npc.spriteDirection = npc.direction;
-            Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 360;
+            NPC.spriteDirection = NPC.direction;
+            Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 360;
 
             FlyToPoint(goalPosition, Vector2.Zero);
 
-            if (npc.ai[1] >= 60 && npc.ai[1] <= 90 && npc.ai[1] % 10 == 0 && Main.netMode != 1)
+            if (NPC.ai[1] >= 60 && NPC.ai[1] <= 90 && NPC.ai[1] % 10 == 0 && Main.netMode != NetmodeID.MultiplayerClient)
             {
-                int number = (int)(npc.ai[1] - 60) / 10;
+                int number = (int)(NPC.ai[1] - 60) / 10;
 
                 for (int i = -number; i <= number; i++)
                 {
-                    Projectile.NewProjectile(npc.Center, new Vector2(npc.direction, 0).RotatedBy(i / 3f * MathHelper.TwoPi / 6) * 0.5f, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1f);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, new Vector2(NPC.direction, 0).RotatedBy(i / 3f * MathHelper.TwoPi / 6) * 0.5f, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1f);
                 }
             }
-            if (npc.ai[1] - 30 >= 60 && npc.ai[1] - 30 <= 90 && (npc.ai[1] - 30) % 10 == 0)
+            if (NPC.ai[1] - 30 >= 60 && NPC.ai[1] - 30 <= 90 && (NPC.ai[1] - 30) % 10 == 0)
             {
-                Main.PlaySound(SoundID.Item71, npc.Center);
+                SoundEngine.PlaySound(SoundID.Item71, NPC.Center);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 150)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 150)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void SideBlastsAttackHard()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-            npc.spriteDirection = npc.direction;
-            Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 720;
+            if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+            NPC.spriteDirection = NPC.direction;
+            Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 720;
 
             FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.4f, maxYAcc: 0.4f);
 
@@ -1334,90 +1356,90 @@ namespace DeathsTerminus.NPCs.CataBoss
             float shotSpeed = 0.5f;
             float shotDistanceFromPlayer = 300;
 
-            if (npc.ai[1] >= 60 && npc.ai[1] % shotPeriod == 60 % shotPeriod && Main.netMode != 1)
+            if (NPC.ai[1] >= 60 && NPC.ai[1] % shotPeriod == 60 % shotPeriod && Main.netMode != NetmodeID.MultiplayerClient)
             {
-                float angleRatio = shotDistanceFromPlayer / (player.Center - npc.Center).Length();
+                float angleRatio = shotDistanceFromPlayer / (player.Center - NPC.Center).Length();
                 if (angleRatio > 1)
                 {
                     angleRatio = 1;
                 }
 
-                int direction = npc.ai[1] % (shotPeriod * 2) == 60 % (shotPeriod * 2) ? 1 : -1;
-                Vector2 shotVelocity = (player.Center - npc.Center).SafeNormalize(Vector2.Zero).RotatedBy(direction * Math.Asin(angleRatio)) * shotSpeed;
+                int direction = NPC.ai[1] % (shotPeriod * 2) == 60 % (shotPeriod * 2) ? 1 : -1;
+                Vector2 shotVelocity = (player.Center - NPC.Center).SafeNormalize(Vector2.Zero).RotatedBy(direction * Math.Asin(angleRatio)) * shotSpeed;
 
-                Projectile.NewProjectile(npc.Center, shotVelocity, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
-                Projectile.NewProjectile(npc.Center, shotVelocity.RotatedBy(0.15f), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
-                Projectile.NewProjectile(npc.Center, shotVelocity.RotatedBy(-0.15f), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
-                Projectile.NewProjectile(npc.Center, -shotVelocity, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
-                Projectile.NewProjectile(npc.Center, -shotVelocity.RotatedBy(0.15f), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
-                Projectile.NewProjectile(npc.Center, -shotVelocity.RotatedBy(-0.15f), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
+                Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, shotVelocity, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
+                Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, shotVelocity.RotatedBy(0.15f), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
+                Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, shotVelocity.RotatedBy(-0.15f), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
+                Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, -shotVelocity, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
+                Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, -shotVelocity.RotatedBy(0.15f), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
+                Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, -shotVelocity.RotatedBy(-0.15f), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 1);
             }
 
-            if (npc.ai[1] >= 90 && npc.ai[1] % shotPeriod == 90 % shotPeriod)
+            if (NPC.ai[1] >= 90 && NPC.ai[1] % shotPeriod == 90 % shotPeriod)
             {
-                Main.PlaySound(SoundID.Item71, npc.Center);
+                SoundEngine.PlaySound(SoundID.Item71, NPC.Center);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 60 + shotPeriod * numShots)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 60 + shotPeriod * numShots)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void IceSpiralAttackHard()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.5f, maxYAcc: 0.5f);
             }
             else
             {
-                npc.velocity = Vector2.Zero;
+                NPC.velocity = Vector2.Zero;
 
-                if (npc.ai[1] == 60 || npc.ai[1] == 240 && Main.netMode != 1)
+                if (NPC.ai[1] == 60 || NPC.ai[1] == 240 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<IceShield>(), 80, 0f, Main.myPlayer);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<IceShield>(), 80, 0f, Main.myPlayer);
                     for (int i = -1; i <= 1; i++)
                     {
-                        Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<RotatingIceShards>(), 80, 0f, Main.myPlayer, ai0: i, ai1: 0f);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<RotatingIceShards>(), 80, 0f, Main.myPlayer, ai0: i, ai1: 0f);
                     }
                 }
 
-                if (npc.ai[1] > 120 && npc.ai[1] < 600 && npc.ai[1] % 10 == 0)
+                if (NPC.ai[1] > 120 && NPC.ai[1] < 600 && NPC.ai[1] % 10 == 0)
                 {
-                    Projectile.NewProjectile(npc.Center, (player.Center - npc.Center).SafeNormalize(Vector2.Zero) * 0.5f, ModContent.ProjectileType<IceShard>(), 80, 0f, Main.myPlayer, ai0: 1.04f);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, (player.Center - NPC.Center).SafeNormalize(Vector2.Zero) * 0.5f, ModContent.ProjectileType<IceShard>(), 80, 0f, Main.myPlayer, ai0: 1.04f);
                 }
 
-                if (npc.ai[1] == 60 || npc.ai[1] == 240)
+                if (NPC.ai[1] == 60 || NPC.ai[1] == 240)
                 {
-                    Main.PlaySound(29, npc.Center, 88);
+                    SoundEngine.PlaySound(SoundID.Zombie88, NPC.Center);
                 }
-                if (npc.ai[1] == 120 || npc.ai[1] == 300)
+                if (NPC.ai[1] == 120 || NPC.ai[1] == 300)
                 {
-                    Main.PlaySound(SoundID.Item120, npc.Center);
+                    SoundEngine.PlaySound(SoundID.Item120, NPC.Center);
                 }
 
-                if (npc.ai[1] % 10 == 0 && npc.ai[1] < 600 && Main.netMode != 1)
+                if (NPC.ai[1] % 10 == 0 && NPC.ai[1] < 600 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: 1);
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: -1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: 1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: -1);
                 }
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 720)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 720)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
@@ -1427,50 +1449,50 @@ namespace DeathsTerminus.NPCs.CataBoss
             int downTime = 51;
             int numDashes = 4;
 
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
             holdingShield = true;
 
-            if (npc.ai[1] < 60 || (npc.ai[1] - 60) % (dashTime + downTime) > dashTime)
+            if (NPC.ai[1] < 60 || (NPC.ai[1] - 60) % (dashTime + downTime) > dashTime)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 180;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 180;
 
                 FlyToPoint(goalPosition, player.velocity, 4f, 2f);
             }
-            else if ((npc.ai[1] - 60) % (dashTime + downTime) == 0)
+            else if ((NPC.ai[1] - 60) % (dashTime + downTime) == 0)
             {
                 canShieldBonk = true;
 
-                npc.width = 40;
-                npc.position.X -= 11;
+                NPC.width = 40;
+                NPC.position.X -= 11;
 
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                npc.velocity.X += npc.direction * 15;
-                npc.velocity.Y = player.velocity.Y / 2;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                NPC.velocity.X += NPC.direction * 15;
+                NPC.velocity.Y = player.velocity.Y / 2;
             }
-            else if ((npc.ai[1] - 60) % (dashTime + downTime) == dashTime)
+            else if ((NPC.ai[1] - 60) % (dashTime + downTime) == dashTime)
             {
                 if (canShieldBonk)
                 {
-                    npc.width = 18;
-                    npc.position.X += 11;
+                    NPC.width = 18;
+                    NPC.position.X += 11;
                 }
 
                 canShieldBonk = false;
 
-                npc.velocity.X -= npc.direction * 15;
+                NPC.velocity.X -= NPC.direction * 15;
             }
             else
             {
                 //spawn moths
-                if (npc.ai[1] % 4 == 0 && Main.netMode != 1)
+                if (NPC.ai[1] % 4 == 0 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(player.Center + new Vector2(-npc.spriteDirection * 2048 + player.velocity.X * 64f, player.velocity.Y * 64f), new Vector2(npc.spriteDirection * 32, 0), ModContent.ProjectileType<MothProjectile>(), 80, 0f, Main.myPlayer);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), player.Center + new Vector2(-NPC.spriteDirection * 2048 + player.velocity.X * 64f, player.velocity.Y * 64f), new Vector2(NPC.spriteDirection * 32, 0), ModContent.ProjectileType<MothProjectile>(), 80, 0f, Main.myPlayer);
                 }
             }
 
@@ -1483,18 +1505,18 @@ namespace DeathsTerminus.NPCs.CataBoss
                     if (Main.player[i].active && !Main.player[i].dead && Main.player[i].dash == 2 && Main.player[i].eocDash > 0 && Main.player[i].eocHit < 0)
                     {
                         Rectangle shieldHitbox = new Rectangle((int)((double)Main.player[i].position.X + (double)Main.player[i].velocity.X * 0.5 - 4.0), (int)((double)Main.player[i].position.Y + (double)Main.player[i].velocity.Y * 0.5 - 4.0), Main.player[i].width + 8, Main.player[i].height + 8);
-                        if (shieldHitbox.Intersects(npc.getRect()))
+                        if (shieldHitbox.Intersects(NPC.getRect()))
                         {
                             //custom stuff for player EoC shield bonks
                             //adapted from how the player detects SoC collision
-                            npc.width = 18;
-                            npc.position.X += 11;
+                            NPC.width = 18;
+                            NPC.position.X += 11;
 
-                            npc.direction *= -1;
-                            npc.velocity.X += npc.direction * 30;
+                            NPC.direction *= -1;
+                            NPC.velocity.X += NPC.direction * 30;
                             canShieldBonk = false;
 
-                            Main.PlaySound(SoundID.NPCHit4, npc.Center);
+                            SoundEngine.PlaySound(SoundID.NPCHit4, NPC.Center);
 
                             //redo the player's SoC bounce motion
                             int num40 = Main.player[i].direction;
@@ -1521,24 +1543,24 @@ namespace DeathsTerminus.NPCs.CataBoss
                 }
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 60 + numDashes * (dashTime + downTime))
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 60 + numDashes * (dashTime + downTime))
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void SlimeBonkHard()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + new Vector2(0, -240) + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + new Vector2(0, -240) + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.5f, maxYAcc: 0.5f);
             }
@@ -1546,43 +1568,43 @@ namespace DeathsTerminus.NPCs.CataBoss
             {
                 bool justBounced = false;
 
-                if (npc.ai[1] == 60)
+                if (NPC.ai[1] == 60)
                 {
                     justBounced = true;
 
-                    Main.PlaySound(SoundID.Item81, npc.Center);
+                    SoundEngine.PlaySound(SoundID.Item81, NPC.Center);
 
                     onSlimeMount = true;
 
-                    if (npc.velocity.Y < 0) npc.velocity.Y /= 2;
-                    npc.velocity.X = player.velocity.X;
+                    if (NPC.velocity.Y < 0) NPC.velocity.Y /= 2;
+                    NPC.velocity.X = player.velocity.X;
 
-                    npc.width = 40;
-                    npc.position.X -= 11;
-                    npc.height = 64;
-                    drawOffsetY = -15;
+                    NPC.width = 40;
+                    NPC.position.X -= 11;
+                    NPC.height = 64;
+                    DrawOffsetY = -15;
 
                     //mount dusts from slime mount
                     for (int i = 0; i < 100; i++)
                     {
-                        int num2 = Dust.NewDust(new Vector2(npc.position.X - 20f, npc.position.Y), npc.width + 40, npc.height, 56);
+                        int num2 = Dust.NewDust(new Vector2(NPC.position.X - 20f, NPC.position.Y), NPC.width + 40, NPC.height, DustID.BlueFairy);
                         Main.dust[num2].scale += (float)Main.rand.Next(-10, 21) * 0.01f;
                         Main.dust[num2].noGravity = true;
                         Dust obj2 = Main.dust[num2];
-                        obj2.velocity += npc.velocity * 0.8f;
+                        obj2.velocity += NPC.velocity * 0.8f;
                     }
                 }
                 else if (onSlimeMount)
                 {
-                    if (npc.ai[1] == 599)
+                    if (NPC.ai[1] == 599)
                     {
-                        npc.velocity = player.velocity;
+                        NPC.velocity = player.velocity;
                         onSlimeMount = false;
 
-                        npc.width = 18;
-                        npc.position.X += 11;
-                        npc.height = 40;
-                        drawOffsetY = -5;
+                        NPC.width = 18;
+                        NPC.position.X += 11;
+                        NPC.height = 40;
+                        DrawOffsetY = -5;
 
                         for (int i = 0; i < Main.maxProjectiles; i++)
                         {
@@ -1597,12 +1619,12 @@ namespace DeathsTerminus.NPCs.CataBoss
                             }
                         }
                     }
-                    else if (npc.velocity.Y < 0 || npc.Hitbox.Top - 240 < player.Hitbox.Bottom)
+                    else if (NPC.velocity.Y < 0 || NPC.Hitbox.Top - 240 < player.Hitbox.Bottom)
                     {
-                        npc.velocity.Y += 0.9f;
+                        NPC.velocity.Y += 0.9f;
 
-                        npc.direction = npc.velocity.X > 0 ? -1 : 1;
-                        npc.spriteDirection = -npc.direction;
+                        NPC.direction = NPC.velocity.X > 0 ? -1 : 1;
+                        NPC.spriteDirection = -NPC.direction;
                     }
                     else
                     {
@@ -1615,94 +1637,94 @@ namespace DeathsTerminus.NPCs.CataBoss
                             }
                         }
 
-                        npc.velocity.Y = Math.Min(-36f, npc.velocity.Y - 36f);
-                        npc.velocity.X = player.velocity.X + (player.Center.X - npc.Center.X) / 60f;
+                        NPC.velocity.Y = Math.Min(-36f, NPC.velocity.Y - 36f);
+                        NPC.velocity.X = player.velocity.X + (player.Center.X - NPC.Center.X) / 60f;
 
-                        npc.direction = npc.velocity.X > 0 ? -1 : 1;
-                        npc.spriteDirection = -npc.direction;
+                        NPC.direction = NPC.velocity.X > 0 ? -1 : 1;
+                        NPC.spriteDirection = -NPC.direction;
 
                         justBounced = true;
                     }
                 }
                 else
                 {
-                    npc.velocity *= 0.98f;
+                    NPC.velocity *= 0.98f;
                 }
 
                 //summon bigger fish
                 if (justBounced)
                 {
-                    if (npc.ai[1] <= 540 && Main.netMode != 1)
+                    if (NPC.ai[1] <= 540 && Main.netMode != NetmodeID.MultiplayerClient)
                     {
-                        float determinant = Math.Max(0, (npc.velocity.Y - player.velocity.Y) * (npc.velocity.Y - player.velocity.Y) - 4 * 0.45f * (npc.Center.Y - player.Center.Y + 240));
-                        float eta = Math.Max(3, (-(npc.velocity.Y - player.velocity.Y) + (float)Math.Sqrt(determinant)) / 0.9f);
+                        float determinant = Math.Max(0, (NPC.velocity.Y - player.velocity.Y) * (NPC.velocity.Y - player.velocity.Y) - 4 * 0.45f * (NPC.Center.Y - player.Center.Y + 240));
+                        float eta = Math.Max(3, (-(NPC.velocity.Y - player.velocity.Y) + (float)Math.Sqrt(determinant)) / 0.9f);
                         float speed = 28f;
-                        Vector2 targetPoint = new Vector2(npc.Center.X + npc.velocity.X * eta, player.Center.Y + 240 + player.velocity.Y * eta);
-                        Vector2 shotPosition = targetPoint + new Vector2(npc.direction * eta * speed, 0);
+                        Vector2 targetPoint = new Vector2(NPC.Center.X + NPC.velocity.X * eta, player.Center.Y + 240 + player.velocity.Y * eta);
+                        Vector2 shotPosition = targetPoint + new Vector2(NPC.direction * eta * speed, 0);
                         Vector2 shotVelocity = (targetPoint - shotPosition) / eta;
 
-                        Projectile.NewProjectile(shotPosition, shotVelocity, ModContent.ProjectileType<FishronPlatform>(), 80, 0f, Main.myPlayer, ai0: npc.whoAmI);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), shotPosition, shotVelocity, ModContent.ProjectileType<FishronPlatform>(), 80, 0f, Main.myPlayer, ai0: NPC.whoAmI);
                     }
                 }
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 600)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 600)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void MothronsAndLampAttack()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + new Vector2(-npc.direction, 0) * 1080;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + new Vector2(-NPC.direction, 0) * 1080;
 
                 FlyToPoint(goalPosition, player.velocity, 0.8f, 0.8f);
             }
             else
             {
-                if (npc.ai[1] == 60)
+                if (NPC.ai[1] == 60)
                 {
-                    npc.ai[2] = npc.Center.X;
-                    npc.ai[3] = npc.Center.Y;
+                    NPC.ai[2] = NPC.Center.X;
+                    NPC.ai[3] = NPC.Center.Y;
 
-                    Main.PlaySound(SoundID.Zombie, npc.Center + new Vector2(npc.direction, 0) * 1500, 104);
+                    SoundEngine.PlaySound(SoundID.Zombie104, NPC.Center + new Vector2(NPC.direction, 0) * 1500);
                     Main.LocalPlayer.GetModPlayer<DTPlayer>().screenShakeTime = 60;
 
-                    if (Main.netMode != 1)
+                    if (Main.netMode != NetmodeID.MultiplayerClient)
                     {
-                        Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<SigilArena>(), 80, 0f, Main.myPlayer, ai0: 600);
-                        Projectile.NewProjectile(npc.Center + new Vector2(npc.direction, 0) * 1500, new Vector2(-npc.direction * 5, 0), ModContent.ProjectileType<SunLamp>(), 80, 0f, Main.myPlayer, ai0: 1f);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<SigilArena>(), 80, 0f, Main.myPlayer, ai0: 600);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center + new Vector2(NPC.direction, 0) * 1500, new Vector2(-NPC.direction * 5, 0), ModContent.ProjectileType<SunLamp>(), 80, 0f, Main.myPlayer, ai0: 1f);
                     }
                 }
 
                 //mothron singing sound
-                if (npc.ai[1] == 120)
+                if (NPC.ai[1] == 120)
                 {
-                    Main.PlaySound(SoundID.Zombie, (int)npc.Center.X, (int)npc.Center.Y, 73, volumeScale: 2f, pitchOffset: -1);
+                    SoundEngine.PlaySound(SoundID.Zombie73.WithVolumeScale(2f).WithPitchOffset(-1), NPC.Center);
                 }
 
                 int period = 60;
                 float number = 10;
 
-                if (Main.netMode != 1 && npc.ai[1] >= 90 && npc.ai[1] <= 480 && npc.ai[1] % period == 0)
+                if (Main.netMode != NetmodeID.MultiplayerClient && NPC.ai[1] >= 90 && NPC.ai[1] <= 480 && NPC.ai[1] % period == 0)
                 {
-                    Vector2 arenaCenter = new Vector2(npc.ai[2], npc.ai[3]);
+                    Vector2 arenaCenter = new Vector2(NPC.ai[2], NPC.ai[3]);
 
                     //ray X position
-                    float relativeRayPosition = npc.direction * 1500 - npc.direction * 5 * (npc.ai[1] + 30 - 60);
+                    float relativeRayPosition = NPC.direction * 1500 - NPC.direction * 5 * (NPC.ai[1] + 30 - 60);
 
                     //angle of the arena still available
                     float availableAngle = (float)Math.Acos(relativeRayPosition / 1200f);
-                    if (npc.direction == 1)
+                    if (NPC.direction == 1)
                     {
                         availableAngle = MathHelper.Pi - availableAngle;
                     }
@@ -1715,500 +1737,500 @@ namespace DeathsTerminus.NPCs.CataBoss
 
                     for (int i = 0; i < number; i++)
                     {
-                        float angleModifier = ((2 * i - (number - 1)) / number + ((npc.ai[1] / 1.618f / period % 1) * 2 - 1) / number);
+                        float angleModifier = ((2 * i - (number - 1)) / number + ((NPC.ai[1] / 1.618f / period % 1) * 2 - 1) / number);
                         angleModifier = (angleModifier * angleModifier * angleModifier + angleModifier) / 2;
 
-                        float shotAngle = -npc.direction * availableAngle * angleModifier;
-                        float goalHeight = arenaCenter.Y + -npc.direction * shotAngle / availableAngle * availableHeight;
+                        float shotAngle = -NPC.direction * availableAngle * angleModifier;
+                        float goalHeight = arenaCenter.Y + -NPC.direction * shotAngle / availableAngle * availableHeight;
 
-                        Projectile.NewProjectile(arenaCenter + new Vector2(-1800f * npc.direction, 0f).RotatedBy(shotAngle), new Vector2(32f * npc.direction, 0).RotatedBy(shotAngle), ModContent.ProjectileType<MothronProjectile>(), 80, 0f, Main.myPlayer, ai0: goalHeight, ai1: npc.direction * 1500 - npc.direction * 5 * (npc.ai[1] - 60) + arenaCenter.X);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), arenaCenter + new Vector2(-1800f * NPC.direction, 0f).RotatedBy(shotAngle), new Vector2(32f * NPC.direction, 0).RotatedBy(shotAngle), ModContent.ProjectileType<MothronProjectile>(), 80, 0f, Main.myPlayer, ai0: goalHeight, ai1: NPC.direction * 1500 - NPC.direction * 5 * (NPC.ai[1] - 60) + arenaCenter.X);
                     }
                 }
 
-                Vector2 goalPosition = new Vector2(npc.ai[2], npc.ai[3]) + new Vector2(-npc.direction, 0) * 1080;
+                Vector2 goalPosition = new Vector2(NPC.ai[2], NPC.ai[3]) + new Vector2(-NPC.direction, 0) * 1080;
 
                 FlyToPoint(goalPosition, Vector2.Zero, 0.25f, 0.25f);
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 600)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 600)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void HeavenPetAttackHard()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] == 60 && Main.netMode != 1)
+            if (NPC.ai[1] == 60 && Main.netMode != NetmodeID.MultiplayerClient)
             {
-                int proj = Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<HeavenPetProjectile>(), 80, 0f, Main.myPlayer, ai0: npc.whoAmI, ai1: 0f);
-                Main.projectile[proj].localAI[1] = npc.localAI[0];
+                int proj = Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<HeavenPetProjectile>(), 80, 0f, Main.myPlayer, ai0: NPC.whoAmI, ai1: 0f);
+                Main.projectile[proj].localAI[1] = NPC.localAI[0];
 
-                Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<CataLastPrism>(), 80, 0f, Main.myPlayer, ai0: npc.whoAmI, ai1: 0f);
+                Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<CataLastPrism>(), 80, 0f, Main.myPlayer, ai0: NPC.whoAmI, ai1: 0f);
             }
-            Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
+            Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 360;
 
-            npc.spriteDirection = npc.direction;
+            NPC.spriteDirection = NPC.direction;
 
             FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.5f, maxYAcc: 0.5f);
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 600)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 600)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void AncientDoomMinefield()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
             int numRings = 16;
             int period = 4;
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.5f, maxYAcc: 0.5f);
             }
-            else if (((int)npc.ai[1] - 60) / period <= numRings)
+            else if (((int)NPC.ai[1] - 60) / period <= numRings)
             {
-                npc.velocity = Vector2.Zero;
+                NPC.velocity = Vector2.Zero;
 
                 //shoot inward-spiraling fireballs
-                if (npc.ai[1] == 60)
+                if (NPC.ai[1] == 60)
                 {
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<CataBossFireballRing>(), 80, 0f, Main.myPlayer, ai0: 1200, ai1: 1);
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<CataBossFireballRing>(), 80, 0f, Main.myPlayer, ai0: 1400, ai1: -1);
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<CataBossFireballRing>(), 80, 0f, Main.myPlayer, ai0: 1600, ai1: 1);
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<CataBossFireballRing>(), 80, 0f, Main.myPlayer, ai0: 1800, ai1: -1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<CataBossFireballRing>(), 80, 0f, Main.myPlayer, ai0: 1200, ai1: 1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<CataBossFireballRing>(), 80, 0f, Main.myPlayer, ai0: 1400, ai1: -1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<CataBossFireballRing>(), 80, 0f, Main.myPlayer, ai0: 1600, ai1: 1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<CataBossFireballRing>(), 80, 0f, Main.myPlayer, ai0: 1800, ai1: -1);
                 }
 
                 //make a whole boatload of mines in sequence
-                if ((npc.ai[1] - 60) % period == 0 && Main.netMode != 1)
+                if ((NPC.ai[1] - 60) % period == 0 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    int i = ((int)npc.ai[1] - 60) / period;
+                    int i = ((int)NPC.ai[1] - 60) / period;
 
                     //ai0 is radius multiplier, ai1 is rotation
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<CataBossMine>(), 80, 0f, Main.myPlayer, ai0: 0, ai1: i);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<CataBossMine>(), 80, 0f, Main.myPlayer, ai0: 0, ai1: i);
                 }
 
-                if (npc.ai[1] == 60)
+                if (NPC.ai[1] == 60)
                 {
-                    Main.PlaySound(29, npc.Center, 89);
+                    SoundEngine.PlaySound(SoundID.Zombie89, NPC.Center);
                 }
             }
             else
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 60;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 60;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.065f, maxYAcc: 0.065f);
 
-                if (npc.ai[1] == (1 + numRings) * period + 60)
+                if (NPC.ai[1] == (1 + numRings) * period + 60)
                 {
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<CataBusterSword>(), 80, 0f, Main.myPlayer, ai0: npc.whoAmI, ai1: 1f);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<CataBusterSword>(), 80, 0f, Main.myPlayer, ai0: NPC.whoAmI, ai1: 1f);
                 }
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 540)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 540)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void IceScythesAttack()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
+                NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.05f, maxYAcc: 0.05f);
 
-                if (npc.ai[1] == 59)
+                if (NPC.ai[1] == 59)
                 {
                     //RoD dusts
-                    Main.TeleportEffect(npc.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
+                    Main.TeleportEffect(NPC.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
 
-                    npc.Center = goalPosition;
-                    npc.velocity = Vector2.Zero;
+                    NPC.Center = goalPosition;
+                    NPC.velocity = Vector2.Zero;
 
                     //RoD arrival dusts
-                    Main.TeleportEffect(npc.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
+                    Main.TeleportEffect(NPC.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
                     teleportTime = 1f;
                 }
             }
             else
             {
-                npc.velocity = Vector2.Zero;
+                NPC.velocity = Vector2.Zero;
 
-                if (npc.ai[1] == 60 || npc.ai[1] == 240 || npc.ai[1] == 420 && Main.netMode != 1)
+                if (NPC.ai[1] == 60 || NPC.ai[1] == 240 || NPC.ai[1] == 420 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<IceShield>(), 80, 0f, Main.myPlayer);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<IceShield>(), 80, 0f, Main.myPlayer);
                     for (int i = -1; i <= 1; i++)
                     {
-                        Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<RotatingIceShards>(), 80, 0f, Main.myPlayer, ai0: i, ai1: 0f);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<RotatingIceShards>(), 80, 0f, Main.myPlayer, ai0: i, ai1: 0f);
                     }
                 }
 
-                if (npc.ai[1] == 120 || npc.ai[1] == 300 || npc.ai[1] == 480 || npc.ai[1] == 660 && Main.netMode != 1)
+                if (NPC.ai[1] == 120 || NPC.ai[1] == 300 || NPC.ai[1] == 480 || NPC.ai[1] == 660 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(npc.Center, npc.DirectionTo(player.Center) * 0.5f, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 2);
-                    Projectile.NewProjectile(npc.Center, npc.DirectionTo(player.Center).RotatedBy(MathHelper.PiOver2) * 0.5f, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 2);
-                    Projectile.NewProjectile(npc.Center, npc.DirectionTo(player.Center).RotatedBy(-MathHelper.PiOver2) * 0.5f, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 2);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, NPC.DirectionTo(player.Center) * 0.5f, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 2);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, NPC.DirectionTo(player.Center).RotatedBy(MathHelper.PiOver2) * 0.5f, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 2);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, NPC.DirectionTo(player.Center).RotatedBy(-MathHelper.PiOver2) * 0.5f, ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 2);
                 }
 
-                if (npc.ai[1] == 60 || npc.ai[1] == 240 || npc.ai[1] == 420)
+                if (NPC.ai[1] == 60 || NPC.ai[1] == 240 || NPC.ai[1] == 420)
                 {
-                    Main.PlaySound(29, npc.Center, 88);
+                    SoundEngine.PlaySound(SoundID.Zombie88, NPC.Center);
                 }
-                if (npc.ai[1] == 120 || npc.ai[1] == 300 || npc.ai[1] == 480)
+                if (NPC.ai[1] == 120 || NPC.ai[1] == 300 || NPC.ai[1] == 480)
                 {
-                    Main.PlaySound(SoundID.Item120, npc.Center);
+                    SoundEngine.PlaySound(SoundID.Item120, NPC.Center);
                 }
-                if (npc.ai[1] == 150 || npc.ai[1] == 330 || npc.ai[1] == 510 || npc.ai[1] == 690)
+                if (NPC.ai[1] == 150 || NPC.ai[1] == 330 || NPC.ai[1] == 510 || NPC.ai[1] == 690)
                 {
-                    Main.PlaySound(SoundID.Item71, npc.Center);
+                    SoundEngine.PlaySound(SoundID.Item71, NPC.Center);
                 }
 
-                if (npc.ai[1] % 10 == 0 && npc.ai[1] < 780 && Main.netMode != 1)
+                if (NPC.ai[1] % 10 == 0 && NPC.ai[1] < 780 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: 1);
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: -1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: 1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<IceShardArena>(), 80, 0f, Main.myPlayer, ai0: -1);
                 }
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 900)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 900)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void AncientDoomMinefieldHard()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
             int numRings = 9;
             int period = 8;
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.05f, maxYAcc: 0.05f);
 
-                if (npc.ai[1] == 59)
+                if (NPC.ai[1] == 59)
                 {
                     //RoD dusts
-                    Main.TeleportEffect(npc.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
+                    Main.TeleportEffect(NPC.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
 
-                    npc.Center = goalPosition;
-                    npc.velocity = Vector2.Zero;
+                    NPC.Center = goalPosition;
+                    NPC.velocity = Vector2.Zero;
 
                     //RoD arrival dusts
-                    Main.TeleportEffect(npc.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
+                    Main.TeleportEffect(NPC.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
                     teleportTime = 1f;
                 }
             }
-            else if (((int)npc.ai[1] - 60) / period <= numRings)
+            else if (((int)NPC.ai[1] - 60) / period <= numRings)
             {
-                npc.velocity = Vector2.Zero;
+                NPC.velocity = Vector2.Zero;
 
-                if (npc.ai[1] == 60 && Main.netMode != 1)
+                if (NPC.ai[1] == 60 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<SigilArena>(), 80, 0f, Main.myPlayer, ai0: 600);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<SigilArena>(), 80, 0f, Main.myPlayer, ai0: 600);
                 }
 
                 //make a whole boatload of mines in sequence
-                if ((npc.ai[1] - 60) % period == 0 && Main.netMode != 1)
+                if ((NPC.ai[1] - 60) % period == 0 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    int i = ((int)npc.ai[1] - 60) / period;
+                    int i = ((int)NPC.ai[1] - 60) / period;
 
                     //ai0 is radius multiplier, ai1 is rotation
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<CataBossMine2>(), 80, 0f, Main.myPlayer, ai0: 0, ai1: i);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<CataBossMine2>(), 80, 0f, Main.myPlayer, ai0: 0, ai1: i);
                 }
 
-                if (npc.ai[1] == 60)
+                if (NPC.ai[1] == 60)
                 {
-                    Main.PlaySound(29, npc.Center, 89);
+                    SoundEngine.PlaySound(SoundID.Zombie89, NPC.Center);
                 }
             }
             else
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 60;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 60;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.065f, maxYAcc: 0.065f);
 
-                if (npc.ai[1] == (1 + numRings) * period + 60)
+                if (NPC.ai[1] == (1 + numRings) * period + 60)
                 {
-                    Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<CataBusterSword>(), 80, 0f, Main.myPlayer, ai0: npc.whoAmI, ai1: 2f);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<CataBusterSword>(), 80, 0f, Main.myPlayer, ai0: NPC.whoAmI, ai1: 2f);
                 }
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 720)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 720)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void FishronsMothsAttack()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] < 60)
+            if (NPC.ai[1] < 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.05f, maxYAcc: 0.05f);
             }
             else
             {
-                if (npc.ai[1] == 60)
+                if (NPC.ai[1] == 60)
                 {
-                    Main.PlaySound(SoundID.Item81, npc.Center);
+                    SoundEngine.PlaySound(SoundID.Item81, NPC.Center);
 
                     onSlimeMount = true;
 
-                    npc.width = 40;
-                    npc.position.X -= 11;
-                    npc.height = 64;
-                    drawOffsetY = -15;
+                    NPC.width = 40;
+                    NPC.position.X -= 11;
+                    NPC.height = 64;
+                    DrawOffsetY = -15;
 
                     //mount dusts from slime mount
                     for (int i = 0; i < 100; i++)
                     {
-                        int num2 = Dust.NewDust(new Vector2(npc.position.X - 20f, npc.position.Y), npc.width + 40, npc.height, 56);
+                        int num2 = Dust.NewDust(new Vector2(NPC.position.X - 20f, NPC.position.Y), NPC.width + 40, NPC.height, DustID.BlueFairy);
                         Main.dust[num2].scale += (float)Main.rand.Next(-10, 21) * 0.01f;
                         Main.dust[num2].noGravity = true;
                         Dust obj2 = Main.dust[num2];
-                        obj2.velocity += npc.velocity * 0.8f;
+                        obj2.velocity += NPC.velocity * 0.8f;
                     }
                 }
 
-                npc.velocity.Y += 0.6f;
+                NPC.velocity.Y += 0.6f;
 
-                if (npc.ai[1] % 120 == 30)
+                if (NPC.ai[1] % 120 == 30)
                 {
-                    npc.velocity.Y = -32f;
+                    NPC.velocity.Y = -32f;
                 }
-                else if (npc.ai[1] % 120 == 60)
+                else if (NPC.ai[1] % 120 == 60)
                 {
                     float direction = player.velocity.X > 0 ? 1 : -1;
 
                     //RoD dusts
-                    Main.TeleportEffect(npc.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
+                    Main.TeleportEffect(NPC.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
 
-                    npc.position = player.Center + new Vector2(-direction * 480, -2430);
-                    npc.velocity = Vector2.Zero;
+                    NPC.position = player.Center + new Vector2(-direction * 480, -2430);
+                    NPC.velocity = Vector2.Zero;
 
                     //RoD arrival dusts
-                    Main.TeleportEffect(npc.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
+                    Main.TeleportEffect(NPC.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
                     teleportTime = 1f;
 
-                    if (Main.netMode != 1)
+                    if (Main.netMode != NetmodeID.MultiplayerClient)
                     {
-                        Projectile.NewProjectile(player.Center + new Vector2(direction * 2400, 0), new Vector2(-direction * 32, 0), ModContent.ProjectileType<DoomedFishron>(), 80, 0f, Main.myPlayer);
+                        Projectile.NewProjectile(NPC.GetSource_FromThis(), player.Center + new Vector2(direction * 2400, 0), new Vector2(-direction * 32, 0), ModContent.ProjectileType<DoomedFishron>(), 80, 0f, Main.myPlayer);
                         for (int i = 1; i <= 50; i++)
                         {
                             float yOffset = (float)(Math.Sqrt(1.5f * i - 0.5f)) * 256;
-                            Projectile.NewProjectile(player.Center + new Vector2(direction * 2400 - 0.5f * direction * Math.Abs(yOffset), yOffset), new Vector2(-direction * 32, 0), ModContent.ProjectileType<MothProjectile>(), 80, 0f, Main.myPlayer);
-                            Projectile.NewProjectile(player.Center + new Vector2(direction * 2400 - 0.5f * direction * Math.Abs(yOffset), -yOffset), new Vector2(-direction * 32, 0), ModContent.ProjectileType<MothProjectile>(), 80, 0f, Main.myPlayer);
+                            Projectile.NewProjectile(NPC.GetSource_FromThis(), player.Center + new Vector2(direction * 2400 - 0.5f * direction * Math.Abs(yOffset), yOffset), new Vector2(-direction * 32, 0), ModContent.ProjectileType<MothProjectile>(), 80, 0f, Main.myPlayer);
+                            Projectile.NewProjectile(NPC.GetSource_FromThis(), player.Center + new Vector2(direction * 2400 - 0.5f * direction * Math.Abs(yOffset), -yOffset), new Vector2(-direction * 32, 0), ModContent.ProjectileType<MothProjectile>(), 80, 0f, Main.myPlayer);
                         }
                     }
                 }
             }
 
-            if (npc.ai[1] == 779)
+            if (NPC.ai[1] == 779)
             {
                 onSlimeMount = false;
 
-                npc.width = 18;
-                npc.position.X += 11;
-                npc.height = 40;
-                drawOffsetY = -5;
+                NPC.width = 18;
+                NPC.position.X += 11;
+                NPC.height = 40;
+                DrawOffsetY = -5;
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 780)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 780)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void MothronsAndLampCircularAttack()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.ai[1] <= 60)
+            if (NPC.ai[1] <= 60)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 720;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 720;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.05f, maxYAcc: 0.05f);
 
-                if (npc.ai[1] == 60)
+                if (NPC.ai[1] == 60)
                 {
                     //RoD dusts
-                    Main.TeleportEffect(npc.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
+                    Main.TeleportEffect(NPC.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
 
-                    npc.Center = goalPosition;
-                    npc.velocity = Vector2.Zero;
+                    NPC.Center = goalPosition;
+                    NPC.velocity = Vector2.Zero;
 
                     //RoD arrival dusts
-                    Main.TeleportEffect(npc.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
+                    Main.TeleportEffect(NPC.Hitbox, 1, 0, MathHelper.Clamp(1f - teleportTime * 0.99f, 0.01f, 1f));
                     teleportTime = 1f;
 
-                    npc.ai[2] = npc.Center.X;
-                    npc.ai[3] = npc.Center.Y;
+                    NPC.ai[2] = NPC.Center.X;
+                    NPC.ai[3] = NPC.Center.Y;
                 }
             }
 
             //mothron singing sound
-            if (npc.ai[1] == 120)
+            if (NPC.ai[1] == 120)
             {
-                Main.PlaySound(SoundID.Zombie, (int)npc.Center.X, (int)npc.Center.Y, 73, volumeScale: 2f, pitchOffset: -1);
+                SoundEngine.PlaySound(SoundID.Zombie73.WithVolumeScale(2f).WithPitchOffset(-1), NPC.Center);
             }
 
-            if (npc.ai[1] == 60 && Main.netMode != 1)
+            if (NPC.ai[1] == 60 && Main.netMode != NetmodeID.MultiplayerClient)
             {
-                Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<SigilArena>(), 80, 0f, Main.myPlayer, ai0: 900);
-                Projectile.NewProjectile(npc.Center, Vector2.Zero, ModContent.ProjectileType<CelestialLamp>(), 80, 0f, Main.myPlayer);
+                Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<SigilArena>(), 80, 0f, Main.myPlayer, ai0: 900);
+                Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, Vector2.Zero, ModContent.ProjectileType<CelestialLamp>(), 80, 0f, Main.myPlayer);
             }
-            if (npc.ai[1] % 20 == 0 && npc.ai[1] >= 120 && npc.ai[1] < 900 && Main.netMode != 1)
+            if (NPC.ai[1] % 20 == 0 && NPC.ai[1] >= 120 && NPC.ai[1] < 900 && Main.netMode != NetmodeID.MultiplayerClient)
             {
                 for (int i = 0; i < 7; i++)
                 {
-                    float rotation = (float)Math.Sin(npc.ai[1] / 60f + npc.ai[1] * npc.ai[1] / 108000f) / 2f + i * MathHelper.TwoPi / 7;
+                    float rotation = (float)Math.Sin(NPC.ai[1] / 60f + NPC.ai[1] * NPC.ai[1] / 108000f) / 2f + i * MathHelper.TwoPi / 7;
 
-                    Projectile.NewProjectile(new Vector2(npc.ai[2], npc.ai[3]) + new Vector2(1200, 960).RotatedBy(rotation), new Vector2(0, -32).RotatedBy(rotation), ModContent.ProjectileType<MothronSpiralProjectile>(), 80, 0f, Main.myPlayer, ai0: 1);
-                    Projectile.NewProjectile(new Vector2(npc.ai[2], npc.ai[3]) + new Vector2(1200, -960).RotatedBy(rotation), new Vector2(0, 32).RotatedBy(rotation), ModContent.ProjectileType<MothronSpiralProjectile>(), 80, 0f, Main.myPlayer, ai0: -1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), new Vector2(NPC.ai[2], NPC.ai[3]) + new Vector2(1200, 960).RotatedBy(rotation), new Vector2(0, -32).RotatedBy(rotation), ModContent.ProjectileType<MothronSpiralProjectile>(), 80, 0f, Main.myPlayer, ai0: 1);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), new Vector2(NPC.ai[2], NPC.ai[3]) + new Vector2(1200, -960).RotatedBy(rotation), new Vector2(0, 32).RotatedBy(rotation), ModContent.ProjectileType<MothronSpiralProjectile>(), 80, 0f, Main.myPlayer, ai0: -1);
                 }
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 1740)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 1740)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         private void MegaSprocketVsMegaBaddySuperCinematicDesperationAttack()
         {
-            Player player = Main.player[npc.target];
+            Player player = Main.player[NPC.target];
 
-            if (npc.localAI[0] == 0)
+            if (NPC.localAI[0] == 0)
             {
-                if (Main.rand.Next(1920) < npc.ai[1])
-                    Dust.NewDust(npc.position, npc.width, npc.height, ModContent.DustType<ShadowDust>());
+                if (Main.rand.Next(1920) < NPC.ai[1])
+                    Dust.NewDust(NPC.position, NPC.width, NPC.height, ModContent.DustType<ShadowDust>());
             }
 
-            if (npc.ai[1] == 60)
+            if (NPC.ai[1] == 60)
             {
-                npc.ai[2] = player.Center.X;
-                npc.ai[3] = player.Center.Y;
+                NPC.ai[2] = player.Center.X;
+                NPC.ai[3] = player.Center.Y;
 
                 Main.LocalPlayer.AddBuff(ModContent.BuffType<Buffs.MysteriousPresence>(), 1560);
 
-                if (Main.netMode != 1)
+                if (Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(new Vector2(npc.ai[2], npc.ai[3]), Vector2.Zero, ModContent.ProjectileType<MegaBaddy>(), 80, 0f, Main.myPlayer, ai0: player.whoAmI);
+                    Projectile.NewProjectile(NPC.GetSource_FromThis(), new Vector2(NPC.ai[2], NPC.ai[3]), Vector2.Zero, ModContent.ProjectileType<MegaBaddy>(), 80, 0f, Main.myPlayer, ai0: player.whoAmI);
                 }
             }
-            else if (npc.ai[1] == 120 && Main.netMode != 1)
+            else if (NPC.ai[1] == 120 && Main.netMode != NetmodeID.MultiplayerClient)
             {
-                int proj = Projectile.NewProjectile(npc.Center, (new Vector2(npc.ai[2], npc.ai[3]) - npc.Center) / 59f, ModContent.ProjectileType<MegaSprocket>(), 80, 0f, Main.myPlayer, ai0: npc.whoAmI, ai1: 2f);
-                Main.projectile[proj].localAI[1] = npc.localAI[0];
+                int proj = Projectile.NewProjectile(NPC.GetSource_FromThis(), NPC.Center, (new Vector2(NPC.ai[2], NPC.ai[3]) - NPC.Center) / 59f, ModContent.ProjectileType<MegaSprocket>(), 80, 0f, Main.myPlayer, ai0: NPC.whoAmI, ai1: 2f);
+                Main.projectile[proj].localAI[1] = NPC.localAI[0];
             }
 
-            if (npc.ai[1] < 120)
+            if (NPC.ai[1] < 120)
             {
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = player.Center + (npc.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = player.Center + (NPC.Center - player.Center).SafeNormalize(Vector2.Zero) * 240;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.5f, maxYAcc: 0.5f);
             }
-            else if (npc.ai[1] < 1620)
+            else if (NPC.ai[1] < 1620)
             {
                 /*npc.direction = -player.direction;
                 npc.spriteDirection = npc.direction;
                 Vector2 goalPosition = new Vector2(npc.ai[2], npc.ai[3]) * 2 - player.Center;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.5f, maxYAcc: 0.5f);*/
-                
-                if (Math.Abs(player.Center.X - npc.Center.X) > 8)
-                    npc.direction = player.Center.X > npc.Center.X ? 1 : -1;
-                npc.spriteDirection = npc.direction;
-                Vector2 goalPosition = new Vector2(npc.ai[2], npc.ai[3]) + (new Vector2(npc.ai[2], npc.ai[3]) - player.Center).RotatedBy(- MathHelper.PiOver2).SafeNormalize(Vector2.Zero) * 50;
+
+                if (Math.Abs(player.Center.X - NPC.Center.X) > 8)
+                    NPC.direction = player.Center.X > NPC.Center.X ? 1 : -1;
+                NPC.spriteDirection = NPC.direction;
+                Vector2 goalPosition = new Vector2(NPC.ai[2], NPC.ai[3]) + (new Vector2(NPC.ai[2], NPC.ai[3]) - player.Center).RotatedBy(-MathHelper.PiOver2).SafeNormalize(Vector2.Zero) * 50;
 
                 FlyToPoint(goalPosition, Vector2.Zero, maxXAcc: 0.5f, maxYAcc: 0.5f);
             }
             else
             {
-                npc.velocity = Vector2.Zero;
+                NPC.velocity = Vector2.Zero;
             }
 
-            npc.ai[1]++;
-            if (npc.ai[1] == 1920)
+            NPC.ai[1]++;
+            if (NPC.ai[1] == 1920)
             {
-                npc.ai[1] = 0;
-                npc.ai[0]++;
+                NPC.ai[1] = 0;
+                NPC.ai[0]++;
             }
         }
 
         public override bool CanHitPlayer(Player target, ref int cooldownSlot)
         {
-            return canShieldBonk || (onSlimeMount && npc.velocity.Y > target.velocity.Y);
+            return canShieldBonk || (onSlimeMount && NPC.velocity.Y > target.velocity.Y);
         }
 
-        public override void OnHitPlayer(Player target, int damage, bool crit)
+        public override void OnHitPlayer(Player target, Player.HurtInfo hurtInfo)
         {
             if (canShieldBonk)
             {
-                npc.width = 18;
-                npc.position.X += 11;
+                NPC.width = 18;
+                NPC.position.X += 11;
 
-                npc.direction *= -1;
-                npc.velocity.X += npc.direction * 30;
+                NPC.direction *= -1;
+                NPC.velocity.X += NPC.direction * 30;
                 canShieldBonk = false;
             }
             else if (onSlimeMount)
             {
-                npc.velocity.Y = -24f;
+                NPC.velocity.Y = -24f;
 
                 for (int i = 0; i < Main.maxProjectiles; i++)
                 {
@@ -2216,16 +2238,16 @@ namespace DeathsTerminus.NPCs.CataBoss
                     {
                         Main.projectile[i].ai[1] = 1;
 
-                        if (Main.netMode != 1)
+                        if (Main.netMode != NetmodeID.MultiplayerClient)
                         {
-                            float determinant = Math.Max(0, (npc.velocity.Y - target.velocity.Y) * (npc.velocity.Y - target.velocity.Y) - 4 * 0.45f * (npc.Center.Y - target.Center.Y + 240));
-                            float eta = Math.Max(3, (-(npc.velocity.Y - target.velocity.Y) + (float)Math.Sqrt(determinant)) / 0.9f);
+                            float determinant = Math.Max(0, (NPC.velocity.Y - target.velocity.Y) * (NPC.velocity.Y - target.velocity.Y) - 4 * 0.45f * (NPC.Center.Y - target.Center.Y + 240));
+                            float eta = Math.Max(3, (-(NPC.velocity.Y - target.velocity.Y) + (float)Math.Sqrt(determinant)) / 0.9f);
                             float speed = 28f;
-                            Vector2 targetPoint = new Vector2(npc.Center.X + npc.velocity.X * eta, target.Center.Y + 240 + target.velocity.Y * eta);
-                            Vector2 shotPosition = targetPoint + new Vector2(npc.direction * eta * speed, 0);
+                            Vector2 targetPoint = new Vector2(NPC.Center.X + NPC.velocity.X * eta, target.Center.Y + 240 + target.velocity.Y * eta);
+                            Vector2 shotPosition = targetPoint + new Vector2(NPC.direction * eta * speed, 0);
                             Vector2 shotVelocity = (targetPoint - shotPosition) / eta;
 
-                            Projectile.NewProjectile(shotPosition, shotVelocity, ModContent.ProjectileType<FishronPlatform>(), 80, 0f, Main.myPlayer, ai0: npc.whoAmI);
+                            Projectile.NewProjectile(NPC.GetSource_FromThis(), shotPosition, shotVelocity, ModContent.ProjectileType<FishronPlatform>(), 80, 0f, Main.myPlayer, ai0: NPC.whoAmI);
                         }
 
                         break;
@@ -2234,48 +2256,47 @@ namespace DeathsTerminus.NPCs.CataBoss
             }
         }
 
-        public override void OnHitByItem(Player player, Item item, int damage, float knockback, bool crit)
+        public override void OnHitByItem(Player player, Item item, NPC.HitInfo hit, int damageDone)
         {
             if (hitDialogueCooldown == 0)
             {
-                CombatText.NewText(npc.getRect(), auraColor, "Save your energy, you can't hurt me.", true);
+                CombatText.NewText(NPC.getRect(), auraColor, "Save your energy, you can't hurt me.", true);
                 hitDialogueCooldown = 120;
             }
         }
 
-        public override void OnHitByProjectile(Projectile projectile, int damage, float knockback, bool crit)
+        public override void OnHitByProjectile(Projectile projectile, NPC.HitInfo hit, int damageDone)
         {
             if (hitDialogueCooldown == 0)
             {
-                if (projectile.ranged)
+                if (projectile.CountsAsClass(DamageClass.Ranged))
                 {
-                    CombatText.NewText(npc.getRect(), auraColor, "Save your ammunition, it can't break my shield.", true);
+                    CombatText.NewText(NPC.getRect(), auraColor, "Save your ammunition, it can't break my shield.", true);
                 }
-                else if (projectile.magic)
+                else if (projectile.CountsAsClass(DamageClass.Magic))
                 {
-                    CombatText.NewText(npc.getRect(), auraColor, "Wasting mana is all you're doing here.", true);
+                    CombatText.NewText(NPC.getRect(), auraColor, "Wasting mana is all you're doing here.", true);
                 }
                 else if (projectile.minion || ProjectileID.Sets.MinionShot[projectile.type] || projectile.sentry || ProjectileID.Sets.SentryShot[projectile.type])
                 {
-                    CombatText.NewText(npc.getRect(), auraColor, "Call off your minions, they won't target me.", true);
+                    CombatText.NewText(NPC.getRect(), auraColor, "Call off your minions, they won't target me.", true);
                 }
-                else if (projectile.thrown)
+                else if (projectile.CountsAsClass(DamageClass.Throwing))
                 {
-                    CombatText.NewText(npc.getRect(), auraColor, "Throwing? Post-Moon Lord? Really?", true);
+                    CombatText.NewText(NPC.getRect(), auraColor, "Throwing? Post-Moon Lord? Really?", true);
                 }
                 else
                 {
-                    CombatText.NewText(npc.getRect(), auraColor, "Save your energy, you can't hurt me.", true);
+                    CombatText.NewText(NPC.getRect(), auraColor, "Save your energy, you can't hurt me.", true);
                 }
                 hitDialogueCooldown = 120;
             }
         }
 
-        public override bool StrikeNPC(ref double damage, int defense, ref float knockback, int hitDirection, ref bool crit)
+        public override void ModifyIncomingHit(ref NPC.HitModifiers modifiers)
         {
-            damage = 0;
+            modifiers.SetMaxDamage(1);
             iceShieldCooldown = 60;
-            return true;
         }
 
         public override bool? DrawHealthBar(byte hbPosition, ref float scale, ref Vector2 position)
@@ -2287,25 +2308,25 @@ namespace DeathsTerminus.NPCs.CataBoss
         {
             if (onSlimeMount)
             {
-                npc.frameCounter = 0;
-                npc.frame.Y = frameHeight * 5;
+                NPC.frameCounter = 0;
+                NPC.frame.Y = frameHeight * 5;
             }
             else
             {
-                npc.frameCounter++;
-                if (npc.frameCounter == 3)
+                NPC.frameCounter++;
+                if (NPC.frameCounter == 3)
                 {
-                    npc.frameCounter = 0;
-                    npc.frame.Y += frameHeight;
+                    NPC.frameCounter = 0;
+                    NPC.frame.Y += frameHeight;
                 }
-                if (npc.frame.Y >= frameHeight * 5)
+                if (NPC.frame.Y >= frameHeight * 5)
                 {
-                    npc.frame.Y = 0;
+                    NPC.frame.Y = 0;
                 }
             }
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color drawColor)
+        public override bool PreDraw(SpriteBatch spriteBatch, Vector2 screenPos, Color drawColor)
         {
             int trailLength = 1;
             if (canShieldBonk || onSlimeMount)
@@ -2315,10 +2336,10 @@ namespace DeathsTerminus.NPCs.CataBoss
 
             for (int i = trailLength - 1; i >= 0; i--)
             {
-                if (i == 0 || i % 2 == (int)npc.ai[1] % 2)
+                if (i == 0 || i % 2 == (int)NPC.ai[1] % 2)
                 {
                     float alpha = (trailLength - i) / (float)trailLength;
-                    Vector2 center = npc.oldPos[i] + new Vector2(npc.width, npc.height) / 2;
+                    Vector2 center = NPC.oldPos[i] + new Vector2(NPC.width, NPC.height) / 2;
 
                     SpriteEffects effects;
 
@@ -2326,29 +2347,29 @@ namespace DeathsTerminus.NPCs.CataBoss
                     {
                         Color useColor = useRainbowColorTransition ? Main.hslToRgb((auraCounter / 120f) % 1, 1f, 0.5f) : spawnTransitionColor;
 
-                        Texture2D ringTexture = ModContent.GetTexture("Terraria/Projectile_490");
-                        Texture2D ringTexture2 = ModContent.GetTexture("Terraria/Extra_34");
+                        Texture2D ringTexture = TextureAssets.Projectile[490].Value;
+                        Texture2D ringTexture2 = TextureAssets.Extra[34].Value;
                         Rectangle frame = ringTexture.Frame();
                         Rectangle frame2 = ringTexture2.Frame();
                         effects = SpriteEffects.None;
 
-                        float rotation = (npc.ai[1] - 180) / 20f;
-                        float alphaModifier = ((npc.ai[1] - 180) / 120f) * ((npc.ai[1] - 180) / 120f);
-                        float scaleModifier = 1 - (npc.ai[1] - 180) / 120f;
+                        float rotation = (NPC.ai[1] - 180) / 20f;
+                        float alphaModifier = ((NPC.ai[1] - 180) / 120f) * ((NPC.ai[1] - 180) / 120f);
+                        float scaleModifier = 1 - (NPC.ai[1] - 180) / 120f;
 
                         for (int j = -1; j < 3; j++)
                         {
-                            spriteBatch.Draw(ringTexture, center - Main.screenPosition, frame, useColor * alpha * alphaModifier * (float)Math.Pow(0.5, j), rotation, frame.Size() / 2f, scaleModifier * (float)Math.Pow(2, j), effects, 0f);
-                            spriteBatch.Draw(ringTexture2, center - Main.screenPosition, frame2, useColor * alpha * alphaModifier * (float)Math.Pow(0.5, j - 0.5), -rotation, frame2.Size() / 2f, scaleModifier * (float)Math.Pow(2, j), effects, 0f);
+                            Main.EntitySpriteDraw(ringTexture, center - Main.screenPosition, frame, useColor * alpha * alphaModifier * (float)Math.Pow(0.5, j), rotation, frame.Size() / 2f, scaleModifier * (float)Math.Pow(2, j), effects, 0f);
+                            Main.EntitySpriteDraw(ringTexture2, center - Main.screenPosition, frame2, useColor * alpha * alphaModifier * (float)Math.Pow(0.5, j - 0.5), -rotation, frame2.Size() / 2f, scaleModifier * (float)Math.Pow(2, j), effects, 0f);
                         }
 
-                        Texture2D silhouetteTexture = mod.GetTexture("NPCs/CataBoss/CataBossSilhouette");
-                        effects = npc.spriteDirection == 1 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-                        Vector2 silhouetteOffset = new Vector2(-npc.spriteDirection * 3, drawOffsetY);
+                        Texture2D silhouetteTexture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossSilhouette").Value;
+                        effects = NPC.spriteDirection == 1 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+                        Vector2 silhouetteOffset = new Vector2(-NPC.spriteDirection * 3, DrawOffsetY);
 
-                        if (npc.localAI[0] == 0)
+                        if (NPC.localAI[0] == 0)
                         {
-                            silhouetteTexture = mod.GetTexture("NPCs/CataBoss/ShadowCataBossSilhouette");
+                            silhouetteTexture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/ShadowCataBossSilhouette").Value;
                         }
 
                         for (int j = 1; j <= 6; j++)
@@ -2357,7 +2378,7 @@ namespace DeathsTerminus.NPCs.CataBoss
                             {
                                 Vector2 individualOffset = new Vector2(j * scaleModifier * 128f, 0).RotatedBy(k * MathHelper.TwoPi / 4 + j * MathHelper.TwoPi / 8);
 
-                                spriteBatch.Draw(silhouetteTexture, center - Main.screenPosition + silhouetteOffset + individualOffset, npc.frame, useColor * alpha * alphaModifier * ((7 - j) / 6f) * 0.5f, 0f, npc.frame.Size() / 2f, 1f, effects, 0f);
+                                Main.EntitySpriteDraw(silhouetteTexture, center - Main.screenPosition + silhouetteOffset + individualOffset, NPC.frame, useColor * alpha * alphaModifier * ((7 - j) / 6f) * 0.5f, 0f, NPC.frame.Size() / 2f, 1f, effects, 0f);
                             }
                         }
                     }
@@ -2366,93 +2387,93 @@ namespace DeathsTerminus.NPCs.CataBoss
                     {
                         Color useColor = useRainbowColorAura ? Main.hslToRgb((auraCounter / 120f) % 1, 1f, 0.5f) : auraColor;
 
-                        Texture2D silhouetteTexture = mod.GetTexture("NPCs/CataBoss/CataBossSilhouette");
-                        effects = npc.spriteDirection == 1 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-                        Vector2 silhouetteOffset = new Vector2(-npc.spriteDirection * 3, drawOffsetY);
+                        Texture2D silhouetteTexture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossSilhouette").Value;
+                        effects = NPC.spriteDirection == 1 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+                        Vector2 silhouetteOffset = new Vector2(-NPC.spriteDirection * 3, DrawOffsetY);
 
-                        if (npc.localAI[0] == 0)
+                        if (NPC.localAI[0] == 0)
                         {
-                            silhouetteTexture = mod.GetTexture("NPCs/CataBoss/ShadowCataBossSilhouette");
+                            silhouetteTexture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/ShadowCataBossSilhouette").Value;
                         }
 
                         for (int k = 0; k < 8; k++)
                         {
                             Vector2 individualOffset = new Vector2(4, 0).RotatedBy(k * MathHelper.TwoPi / 8 + auraCounter / 20f);
 
-                            spriteBatch.Draw(silhouetteTexture, center - Main.screenPosition + silhouetteOffset + individualOffset, npc.frame, useColor * alpha * 0.5f, 0f, npc.frame.Size() / 2f, 1f, effects, 0f);
+                            Main.EntitySpriteDraw(silhouetteTexture, center - Main.screenPosition + silhouetteOffset + individualOffset, NPC.frame, useColor * alpha * 0.5f, 0f, NPC.frame.Size() / 2f, 1f, effects, 0f);
                         }
                     }
 
                     if (onSlimeMount)
                     {
-                        Texture2D mountTexture = ModContent.GetTexture("Terraria/Mount_Slime");
+                        Texture2D mountTexture = ModContent.Request<Texture2D>("Terraria/Images/Mount_Slime").Value;
                         Rectangle frame = mountTexture.Frame(1, 4, 0, 1);
-                        effects = npc.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
-                        Vector2 mountOffset = new Vector2(npc.spriteDirection * 0, 10);
-                        spriteBatch.Draw(mountTexture, center - Main.screenPosition + mountOffset, frame, Color.White * alpha, 0f, frame.Size() / 2f, 1f, effects, 0f);
+                        effects = NPC.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
+                        Vector2 mountOffset = new Vector2(NPC.spriteDirection * 0, 10);
+                        Main.EntitySpriteDraw(mountTexture, center - Main.screenPosition + mountOffset, frame, Color.White * alpha, 0f, frame.Size() / 2f, 1f, effects, 0f);
                     }
 
-                    Texture2D npcTexture = Main.npcTexture[npc.type];
+                    Texture2D npcTexture = TextureAssets.Npc[NPC.type].Value;
 
-                    if (npc.localAI[0] == 0)
+                    if (NPC.localAI[0] == 0)
                     {
-                        npcTexture = mod.GetTexture("NPCs/CataBoss/ShadowCataBoss");
+                        npcTexture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/ShadowCataBoss").Value;
                     }
 
-                    effects = npc.spriteDirection == 1 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-                    Vector2 npcOffset = new Vector2(-npc.spriteDirection * 3, drawOffsetY);
-                    spriteBatch.Draw(npcTexture, center - Main.screenPosition + npcOffset, npc.frame, Color.White * alpha, 0f, npc.frame.Size() / 2f, 1f, effects, 0f);
+                    effects = NPC.spriteDirection == 1 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+                    Vector2 npcOffset = new Vector2(-NPC.spriteDirection * 3, DrawOffsetY);
+                    Main.EntitySpriteDraw(npcTexture, center - Main.screenPosition + npcOffset, NPC.frame, Color.White * alpha, 0f, NPC.frame.Size() / 2f, 1f, effects, 0f);
 
                     if (holdingShield)
                     {
-                        Texture2D shieldTexture = ModContent.GetTexture("Terraria/Acc_Shield_5");
+                        Texture2D shieldTexture = ModContent.Request<Texture2D>("Terraria/Images/Acc_Shield_5").Value;
                         Rectangle frame = shieldTexture.Frame(1, 20);
-                        effects = npc.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
-                        Vector2 shieldOffset = new Vector2(npc.spriteDirection * 3, -4);
+                        effects = NPC.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
+                        Vector2 shieldOffset = new Vector2(NPC.spriteDirection * 3, -4);
 
-                        spriteBatch.Draw(shieldTexture, center - Main.screenPosition + shieldOffset, frame, Color.White * alpha, 0f, frame.Size() / 2f, 1f, effects, 0f);
+                        Main.EntitySpriteDraw(shieldTexture, center - Main.screenPosition + shieldOffset, frame, Color.White * alpha, 0f, frame.Size() / 2f, 1f, effects, 0f);
                     }
 
                     if (drawEyeTrail)
                     {
                         float eyeTrailLength = 20;
-                        Texture2D eyeTexture = mod.GetTexture("NPCs/CataBoss/CataBossEyeGlow");
+                        Texture2D eyeTexture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossEyeGlow").Value;
                         Rectangle frame = eyeTexture.Frame();
-                        effects = npc.spriteDirection == 1 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-                        Vector2 eyeOffset = new Vector2(npc.spriteDirection * 4, drawOffsetY - 12);
+                        effects = NPC.spriteDirection == 1 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+                        Vector2 eyeOffset = new Vector2(NPC.spriteDirection * 4, DrawOffsetY - 12);
                         Color useColor = useRainbowColorAura ? Main.hslToRgb((auraCounter / 120f) % 1, 1f, 0.5f) : auraColor;
 
-                        for (int j=0; j<eyeTrailLength; j++)
+                        for (int j = 0; j < eyeTrailLength; j++)
                         {
                             float scale = (eyeTrailLength - j) / eyeTrailLength;
-                            spriteBatch.Draw(eyeTexture, npc.oldPos[i + j] + new Vector2(npc.width, npc.height) / 2 - Main.screenPosition + eyeOffset, frame, useColor * (alpha * scale * 0.75f), 0f, frame.Size() / 2f, scale, effects, 0f);
+                            Main.EntitySpriteDraw(eyeTexture, NPC.oldPos[i + j] + new Vector2(NPC.width, NPC.height) / 2 - Main.screenPosition + eyeOffset, frame, useColor * (alpha * scale * 0.75f), 0f, frame.Size() / 2f, scale, effects, 0f);
                             float scale2 = (eyeTrailLength - j - 0.5f) / eyeTrailLength;
-                            spriteBatch.Draw(eyeTexture, (npc.oldPos[i + j] + npc.oldPos[i + j + 1]) / 2 + new Vector2(npc.width, npc.height) / 2 - Main.screenPosition + eyeOffset, frame, useColor * (alpha * scale2 * 0.75f), 0f, frame.Size() / 2f, scale2, effects, 0f);
+                            Main.EntitySpriteDraw(eyeTexture, (NPC.oldPos[i + j] + NPC.oldPos[i + j + 1]) / 2 + new Vector2(NPC.width, NPC.height) / 2 - Main.screenPosition + eyeOffset, frame, useColor * (alpha * scale2 * 0.75f), 0f, frame.Size() / 2f, scale2, effects, 0f);
                         }
                     }
 
                     //draw RoD
                     if (teleportTime > 0.9f)
                     {
-                        Texture2D rodTexture = ModContent.GetTexture("Terraria/Item_"+ItemID.RodofDiscord);
+                        Texture2D rodTexture = TextureAssets.Item[ItemID.RodofDiscord].Value;
                         Rectangle frame = rodTexture.Frame();
-                        effects = npc.spriteDirection == 1 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-                        Vector2 drawCenter = npc.spriteDirection == 1 ? new Vector2(frame.Width, frame.Height) : new Vector2(0, frame.Height);
-                        Vector2 rodOffset = new Vector2(npc.spriteDirection * 0, 0);
-                        float rodRotation = -npc.spriteDirection * (teleportTime * 10 - 9.5f) * MathHelper.Pi + npc.spriteDirection * MathHelper.PiOver2;
+                        effects = NPC.spriteDirection == 1 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+                        Vector2 drawCenter = NPC.spriteDirection == 1 ? new Vector2(frame.Width, frame.Height) : new Vector2(0, frame.Height);
+                        Vector2 rodOffset = new Vector2(NPC.spriteDirection * 0, 0);
+                        float rodRotation = -NPC.spriteDirection * (teleportTime * 10 - 9.5f) * MathHelper.Pi + NPC.spriteDirection * MathHelper.PiOver2;
 
-                        spriteBatch.Draw(rodTexture, center - Main.screenPosition + rodOffset, frame, Color.White * alpha, rodRotation, drawCenter, 1f, effects, 0f);
+                        Main.EntitySpriteDraw(rodTexture, center - Main.screenPosition + rodOffset, frame, Color.White * alpha, rodRotation, drawCenter, 1f, effects, 0f);
                     }
 
                     if (iceShieldCooldown > 0)
                     {
-                        Texture2D shieldTexture = ModContent.GetTexture("Terraria/Projectile_464");
+                        Texture2D shieldTexture = TextureAssets.Projectile[464].Value;
                         Rectangle frame = shieldTexture.Frame();
-                        effects = npc.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
+                        effects = NPC.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
                         float shieldAlpha = iceShieldCooldown / 120f;
                         Vector2 shieldOffset = new Vector2(0, -2);
 
-                        spriteBatch.Draw(shieldTexture, center - Main.screenPosition + shieldOffset, frame, Color.White * shieldAlpha * alpha, 0f, frame.Size() / 2f, 1f, effects, 0f);
+                        Main.EntitySpriteDraw(shieldTexture, center - Main.screenPosition + shieldOffset, frame, Color.White * shieldAlpha * alpha, 0f, frame.Size() / 2f, 1f, effects, 0f);
                     }
                 }
             }
@@ -2465,14 +2486,14 @@ namespace DeathsTerminus.NPCs.CataBoss
             if (killable)
             {
                 //doesn't actually happen yet
-                if (npc.localAI[0] == 1)
+                if (NPC.localAI[0] == 1)
                 {
                     DTWorld.DownedCataBoss = true;
-                    NPC.NewNPC((int)npc.position.X, (int)npc.position.Y + npc.height / 2, ModContent.NPCType<CataclysmicArmageddon>());
+                    NPC.NewNPC(NPC.GetSource_FromThis(), (int)NPC.position.X, (int)NPC.position.Y + NPC.height / 2, ModContent.NPCType<CataclysmicArmageddon>());
                 }
                 return true;
             }
-            npc.life = npc.lifeMax;
+            NPC.life = NPC.lifeMax;
             return false;
         }
 
@@ -2485,12 +2506,12 @@ namespace DeathsTerminus.NPCs.CataBoss
     public class CataBossScythe : ModProjectile
     {
         //demon scythe but no dust and it passes through tiles
-        public override string Texture => "DeathsTerminus/NPCs/CataBoss/CataDemonScythe"; //"Terraria/Projectile_" + ProjectileID.DemonSickle;
+        public override string Texture => "DeathsTerminus/NPCs/CataBoss/CataDemonScythe"; //"Terraria/Images/Projectile_" + ProjectileID.DemonSickle;
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Demon Scythe");
-            
+            // DisplayName.SetDefault("Demon Scythe");
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
             /*Texture2D texture = new Texture2D(Main.spriteBatch.GraphicsDevice, 64, 128, false, SurfaceFormat.Color);
 			System.Collections.Generic.List<Color> list = new System.Collections.Generic.List<Color>();
 			for (int j = 0; j < texture.Height; j++)
@@ -2536,61 +2557,61 @@ namespace DeathsTerminus.NPCs.CataBoss
 
         public override void SetDefaults()
         {
-            projectile.width = 42; //48;
-            projectile.height = 42; //48;
-            projectile.alpha = 32;
-            projectile.light = 0.2f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;//0.9f;
-            projectile.timeLeft = 130;
+            Projectile.width = 42; //48;
+            Projectile.height = 42; //48;
+            Projectile.alpha = 32;
+            Projectile.light = 0.2f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;//0.9f;
+            Projectile.timeLeft = 130;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            projectile.rotation += projectile.direction * 0.8f;
-            projectile.ai[0] += 1f;
-            if (!(projectile.ai[0] < 30f))
+            Projectile.rotation += Projectile.direction * 0.8f;
+            Projectile.ai[0] += 1f;
+            if (!(Projectile.ai[0] < 30f))
             {
-                if (projectile.ai[0] < 120f)
+                if (Projectile.ai[0] < 120f)
                 {
-                    projectile.velocity *= 1.06f;
+                    Projectile.velocity *= 1.06f;
                 }
             }
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            if (projectile.ai[1] == 0)
+            if (Projectile.ai[1] == 0)
             {
-                spriteBatch.Draw(Main.projectileTexture[projectile.type], projectile.Center - Main.screenPosition, new Rectangle(0, 0, Main.projectileTexture[projectile.type].Width, Main.projectileTexture[projectile.type].Height), Color.White * (1 - projectile.alpha / 255f), projectile.rotation, new Vector2(Main.projectileTexture[projectile.type].Width / 2f, Main.projectileTexture[projectile.type].Height / 2f), projectile.scale, SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(TextureAssets.Projectile[Projectile.type].Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, TextureAssets.Projectile[Projectile.type].Value.Width, TextureAssets.Projectile[Projectile.type].Value.Height), Color.White * (1 - Projectile.alpha / 255f), Projectile.rotation, new Vector2(TextureAssets.Projectile[Projectile.type].Value.Width / 2f, TextureAssets.Projectile[Projectile.type].Value.Height / 2f), Projectile.scale, SpriteEffects.None, 0f);
 
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossScytheTelegraph"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Purple * 0.25f, projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(projectile.velocity.Length(), projectile.width / 128f), SpriteEffects.None, 0f);
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossTelegraphCap"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Purple * 0.25f, (-projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(projectile.width / 128f, projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossScytheTelegraph").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Purple * 0.25f, Projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(Projectile.velocity.Length(), Projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossTelegraphCap").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Purple * 0.25f, (-Projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(Projectile.width / 128f, Projectile.width / 128f), SpriteEffects.None, 0f);
             }
-            else if (projectile.ai[1] == 1)
+            else if (Projectile.ai[1] == 1)
             {
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataEclipseScythe"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, Main.projectileTexture[projectile.type].Width, Main.projectileTexture[projectile.type].Height), Color.White * (1 - projectile.alpha / 255f), projectile.rotation, new Vector2(Main.projectileTexture[projectile.type].Width / 2f, Main.projectileTexture[projectile.type].Height / 2f), projectile.scale, SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataEclipseScythe").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, TextureAssets.Projectile[Projectile.type].Value.Width, TextureAssets.Projectile[Projectile.type].Value.Height), Color.White * (1 - Projectile.alpha / 255f), Projectile.rotation, new Vector2(TextureAssets.Projectile[Projectile.type].Value.Width / 2f, TextureAssets.Projectile[Projectile.type].Value.Height / 2f), Projectile.scale, SpriteEffects.None, 0f);
 
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossScytheTelegraph"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Orange * 0.25f, projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(projectile.velocity.Length(), projectile.width / 128f), SpriteEffects.None, 0f);
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossTelegraphCap"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Orange * 0.25f, (-projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(projectile.width / 128f, projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossScytheTelegraph").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Orange * 0.25f, Projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(Projectile.velocity.Length(), Projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossTelegraphCap").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Orange * 0.25f, (-Projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(Projectile.width / 128f, Projectile.width / 128f), SpriteEffects.None, 0f);
             }
-            else if (projectile.ai[1] == 2)
+            else if (Projectile.ai[1] == 2)
             {
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataCelestialScythe"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, Main.projectileTexture[projectile.type].Width, Main.projectileTexture[projectile.type].Height), Color.White * (1 - projectile.alpha / 255f), projectile.rotation, new Vector2(Main.projectileTexture[projectile.type].Width / 2f, Main.projectileTexture[projectile.type].Height / 2f), projectile.scale, SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataCelestialScythe").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, TextureAssets.Projectile[Projectile.type].Value.Width, TextureAssets.Projectile[Projectile.type].Value.Height), Color.White * (1 - Projectile.alpha / 255f), Projectile.rotation, new Vector2(TextureAssets.Projectile[Projectile.type].Value.Width / 2f, TextureAssets.Projectile[Projectile.type].Value.Height / 2f), Projectile.scale, SpriteEffects.None, 0f);
 
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossScytheTelegraph"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.LightBlue * 0.25f, projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(projectile.velocity.Length(), projectile.width / 128f), SpriteEffects.None, 0f);
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossTelegraphCap"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.LightBlue * 0.25f, (-projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(projectile.width / 128f, projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossScytheTelegraph").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.LightBlue * 0.25f, Projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(Projectile.velocity.Length(), Projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossTelegraphCap").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.LightBlue * 0.25f, (-Projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(Projectile.width / 128f, Projectile.width / 128f), SpriteEffects.None, 0f);
             }
 
             return false;
@@ -2600,73 +2621,74 @@ namespace DeathsTerminus.NPCs.CataBoss
     public class CataBossSuperScythe : ModProjectile
     {
         //demon scythe but no dust and it passes through tiles
-        public override string Texture => "DeathsTerminus/NPCs/CataBoss/CataDemonScythe"; //"Terraria/Projectile_" + ProjectileID.DemonSickle;
+        public override string Texture => "DeathsTerminus/NPCs/CataBoss/CataDemonScythe"; //"Terraria/Images/Projectile_" + ProjectileID.DemonSickle;
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Super Scythe");
+            // DisplayName.SetDefault("Super Scythe");
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 42;//48;
-            projectile.height = 42;// 48;
-            projectile.alpha = 32;
-            projectile.light = 0.2f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.scale = 1f;// 0.9f;
-            projectile.timeLeft = 160;
+            Projectile.width = 42;//48;
+            Projectile.height = 42;// 48;
+            Projectile.alpha = 32;
+            Projectile.light = 0.2f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.scale = 1f;// 0.9f;
+            Projectile.timeLeft = 160;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            projectile.rotation += projectile.direction * 0.8f;
-            projectile.ai[0] += 1f;
-            if (projectile.ai[0] == 30f)
+            Projectile.rotation += Projectile.direction * 0.8f;
+            Projectile.ai[0] += 1f;
+            if (Projectile.ai[0] == 30f)
             {
-                projectile.velocity *= 60f;
+                Projectile.velocity *= 60f;
             }
 
-            if (projectile.ai[0] >= 30 && (projectile.ai[0] - 30) % 7 == 0 && Main.netMode != 1)
+            if (Projectile.ai[0] >= 30 && (Projectile.ai[0] - 30) % 7 == 0 && Main.netMode != NetmodeID.MultiplayerClient)
             {
-                Projectile.NewProjectile(projectile.Center, projectile.velocity.SafeNormalize(Vector2.Zero) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai1: projectile.ai[1]);
-                Projectile.NewProjectile(projectile.Center, projectile.velocity.SafeNormalize(Vector2.Zero).RotatedBy(MathHelper.PiOver2) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai1: projectile.ai[1]);
-                Projectile.NewProjectile(projectile.Center, projectile.velocity.SafeNormalize(Vector2.Zero).RotatedBy(-MathHelper.PiOver2) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai1: projectile.ai[1]);
+                Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, Projectile.velocity.SafeNormalize(Vector2.Zero) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai1: Projectile.ai[1]);
+                Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, Projectile.velocity.SafeNormalize(Vector2.Zero).RotatedBy(MathHelper.PiOver2) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai1: Projectile.ai[1]);
+                Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, Projectile.velocity.SafeNormalize(Vector2.Zero).RotatedBy(-MathHelper.PiOver2) * 0.5f, ModContent.ProjectileType<CataBossScythe>(), 80, 0f, Main.myPlayer, ai1: Projectile.ai[1]);
             }
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            if (projectile.ai[1] == 0)
+            if (Projectile.ai[1] == 0)
             {
-                spriteBatch.Draw(Main.projectileTexture[projectile.type], projectile.Center - Main.screenPosition, new Rectangle(0, 0, Main.projectileTexture[projectile.type].Width, Main.projectileTexture[projectile.type].Height), Color.White * (1 - projectile.alpha / 255f), projectile.rotation, new Vector2(Main.projectileTexture[projectile.type].Width / 2f, Main.projectileTexture[projectile.type].Height / 2f), projectile.scale, SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(TextureAssets.Projectile[Projectile.type].Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, TextureAssets.Projectile[Projectile.type].Value.Width, TextureAssets.Projectile[Projectile.type].Value.Height), Color.White * (1 - Projectile.alpha / 255f), Projectile.rotation, new Vector2(TextureAssets.Projectile[Projectile.type].Value.Width / 2f, TextureAssets.Projectile[Projectile.type].Value.Height / 2f), Projectile.scale, SpriteEffects.None, 0f);
 
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossScytheTelegraph"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Purple * 0.25f, projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(30, projectile.width / 128f), SpriteEffects.None, 0f);
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossTelegraphCap"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Purple * 0.25f, (-projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(projectile.width / 128f, projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossScytheTelegraph").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Purple * 0.25f, Projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(30, Projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossTelegraphCap").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Purple * 0.25f, (-Projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(Projectile.width / 128f, Projectile.width / 128f), SpriteEffects.None, 0f);
             }
-            else if (projectile.ai[1] == 1)
+            else if (Projectile.ai[1] == 1)
             {
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataEclipseScythe"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, Main.projectileTexture[projectile.type].Width, Main.projectileTexture[projectile.type].Height), Color.White * (1 - projectile.alpha / 255f), projectile.rotation, new Vector2(Main.projectileTexture[projectile.type].Width / 2f, Main.projectileTexture[projectile.type].Height / 2f), projectile.scale, SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataEclipseScythe").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, TextureAssets.Projectile[Projectile.type].Value.Width, TextureAssets.Projectile[Projectile.type].Value.Height), Color.White * (1 - Projectile.alpha / 255f), Projectile.rotation, new Vector2(TextureAssets.Projectile[Projectile.type].Value.Width / 2f, TextureAssets.Projectile[Projectile.type].Value.Height / 2f), Projectile.scale, SpriteEffects.None, 0f);
 
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossScytheTelegraph"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Orange * 0.25f, projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(30, projectile.width / 128f), SpriteEffects.None, 0f);
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossTelegraphCap"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Orange * 0.25f, (-projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(projectile.width / 128f, projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossScytheTelegraph").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Orange * 0.25f, Projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(30, Projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossTelegraphCap").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Orange * 0.25f, (-Projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(Projectile.width / 128f, Projectile.width / 128f), SpriteEffects.None, 0f);
             }
-            else if (projectile.ai[1] == 2)
+            else if (Projectile.ai[1] == 2)
             {
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataCelestialScythe"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, Main.projectileTexture[projectile.type].Width, Main.projectileTexture[projectile.type].Height), Color.White * (1 - projectile.alpha / 255f), projectile.rotation, new Vector2(Main.projectileTexture[projectile.type].Width / 2f, Main.projectileTexture[projectile.type].Height / 2f), projectile.scale, SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataCelestialScythe").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, TextureAssets.Projectile[Projectile.type].Value.Width, TextureAssets.Projectile[Projectile.type].Value.Height), Color.White * (1 - Projectile.alpha / 255f), Projectile.rotation, new Vector2(TextureAssets.Projectile[Projectile.type].Value.Width / 2f, TextureAssets.Projectile[Projectile.type].Value.Height / 2f), Projectile.scale, SpriteEffects.None, 0f);
 
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossScytheTelegraph"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.LightBlue * 0.25f, projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(30, projectile.width / 128f), SpriteEffects.None, 0f);
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossTelegraphCap"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.LightBlue * 0.25f, (-projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(projectile.width / 128f, projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossScytheTelegraph").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.LightBlue * 0.25f, Projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(30, Projectile.width / 128f), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossTelegraphCap").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.LightBlue * 0.25f, (-Projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(Projectile.width / 128f, Projectile.width / 128f), SpriteEffects.None, 0f);
             }
 
             return false;
@@ -2675,7 +2697,7 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class RotatingIceShards : ModProjectile
     {
-        public override string Texture => "Terraria/Extra_35";
+        public override string Texture => "Terraria/Images/Extra_35";
 
         private static int shardRadius = 12;
         private static int shardCount = 24;
@@ -2683,36 +2705,37 @@ namespace DeathsTerminus.NPCs.CataBoss
         //ring of ice shards
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Ice Shard");
-            Main.projFrames[projectile.type] = 3;
+            // DisplayName.SetDefault("Ice Shard");
+            Main.projFrames[Projectile.type] = 3;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 2;
-            projectile.height = 2;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 420;
+            Projectile.width = 2;
+            Projectile.height = 2;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 420;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            if (projectile.timeLeft <= 360)
+            if (Projectile.timeLeft <= 360)
             {
-                float angle = MathHelper.TwoPi * projectile.timeLeft / 360f;
+                float angle = MathHelper.TwoPi * Projectile.timeLeft / 360f;
 
                 //set radius and rotation
-                projectile.localAI[1] = 600 * (float)Math.Sqrt(2 - 2 * Math.Cos(angle));
-                projectile.rotation = projectile.ai[1] + projectile.ai[0] * (angle + MathHelper.Pi) / 2;
+                Projectile.localAI[1] = 600 * (float)Math.Sqrt(2 - 2 * Math.Cos(angle));
+                Projectile.rotation = Projectile.ai[1] + Projectile.ai[0] * (angle + MathHelper.Pi) / 2;
             }
         }
 
@@ -2720,7 +2743,7 @@ namespace DeathsTerminus.NPCs.CataBoss
         {
             for (int i = 0; i < shardCount; i++)
             {
-                Vector2 circleCenter = projectile.Center + new Vector2(projectile.localAI[1] * projectile.scale, 0).RotatedBy(projectile.rotation + i * MathHelper.TwoPi / shardCount);
+                Vector2 circleCenter = Projectile.Center + new Vector2(Projectile.localAI[1] * Projectile.scale, 0).RotatedBy(Projectile.rotation + i * MathHelper.TwoPi / shardCount);
                 float nearestX = Math.Max(targetHitbox.X, Math.Min(circleCenter.X, targetHitbox.X + targetHitbox.Size().X));
                 float nearestY = Math.Max(targetHitbox.Y, Math.Min(circleCenter.Y, targetHitbox.Y + targetHitbox.Size().Y));
                 if (new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < shardRadius)
@@ -2731,31 +2754,31 @@ namespace DeathsTerminus.NPCs.CataBoss
             return false;
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
             for (int i = 0; i < shardCount; i++)
             {
                 Rectangle frame = texture.Frame(1, 3);
 
-                for (int j = Math.Min(projectile.timeLeft, 360); j >= Math.Max(0, projectile.timeLeft - 60); j--)
+                for (int j = Math.Min(Projectile.timeLeft, 360); j >= Math.Max(0, Projectile.timeLeft - 60); j--)
                 {
                     float angle = MathHelper.TwoPi * j / 360f;
                     float radius = 600 * (float)Math.Sqrt(2 - 2 * Math.Cos(angle));
-                    float rotation = projectile.ai[1] + projectile.ai[0] * (angle + MathHelper.Pi) / 2;
-                    float alphaMultiplier = Math.Max(0, (60 - projectile.timeLeft + j) / 60f);
+                    float rotation = Projectile.ai[1] + Projectile.ai[0] * (angle + MathHelper.Pi) / 2;
+                    float alphaMultiplier = Math.Max(0, (60 - Projectile.timeLeft + j) / 60f);
 
-                    spriteBatch.Draw(texture, projectile.Center - Main.screenPosition + new Vector2(radius * projectile.scale, 0).RotatedBy(rotation + i * MathHelper.TwoPi / shardCount), frame, Color.White * alphaMultiplier * 0.03f, rotation + i * MathHelper.TwoPi / shardCount - MathHelper.PiOver2 + projectile.ai[0] * MathHelper.Pi * (1 + j / 360f), new Vector2(12, 37), projectile.scale, SpriteEffects.None, 0f);
+                    Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition + new Vector2(radius * Projectile.scale, 0).RotatedBy(rotation + i * MathHelper.TwoPi / shardCount), frame, Color.White * alphaMultiplier * 0.03f, rotation + i * MathHelper.TwoPi / shardCount - MathHelper.PiOver2 + Projectile.ai[0] * MathHelper.Pi * (1 + j / 360f), new Vector2(12, 37), Projectile.scale, SpriteEffects.None, 0f);
                 }
 
-                if (projectile.timeLeft <= 360)
-                    spriteBatch.Draw(texture, projectile.Center - Main.screenPosition + new Vector2(projectile.localAI[1] * projectile.scale, 0).RotatedBy(projectile.rotation + i * MathHelper.TwoPi / shardCount), frame, Color.White, projectile.rotation + i * MathHelper.TwoPi / shardCount - MathHelper.PiOver2 + projectile.ai[0] * MathHelper.Pi * (1 + projectile.timeLeft / 360f), new Vector2(12, 37), projectile.scale, SpriteEffects.None, 0f);
+                if (Projectile.timeLeft <= 360)
+                    Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition + new Vector2(Projectile.localAI[1] * Projectile.scale, 0).RotatedBy(Projectile.rotation + i * MathHelper.TwoPi / shardCount), frame, Color.White, Projectile.rotation + i * MathHelper.TwoPi / shardCount - MathHelper.PiOver2 + Projectile.ai[0] * MathHelper.Pi * (1 + Projectile.timeLeft / 360f), new Vector2(12, 37), Projectile.scale, SpriteEffects.None, 0f);
             }
             return false;
         }
@@ -2763,7 +2786,7 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class IceShardArena : ModProjectile
     {
-        public override string Texture => "Terraria/Extra_35";
+        public override string Texture => "Terraria/Images/Extra_35";
 
         private static int shardRadius = 12;
         private static int shardCount = 24;
@@ -2771,25 +2794,26 @@ namespace DeathsTerminus.NPCs.CataBoss
         //ring of ice shards
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Ice Shard");
-            Main.projFrames[projectile.type] = 3;
+            // DisplayName.SetDefault("Ice Shard");
+            Main.projFrames[Projectile.type] = 3;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 2;
-            projectile.height = 2;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 200;
+            Projectile.width = 2;
+            Projectile.height = 2;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 200;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
@@ -2798,17 +2822,17 @@ namespace DeathsTerminus.NPCs.CataBoss
             //velocity is new vector2(0, ±24)
 
             //set radius and rotation
-            Vector2 positionOffset = new Vector2(1200, projectile.ai[0] * 2400) + new Vector2(0, -projectile.ai[0] * 24) * (200 - projectile.timeLeft);
+            Vector2 positionOffset = new Vector2(1200, Projectile.ai[0] * 2400) + new Vector2(0, -Projectile.ai[0] * 24) * (200 - Projectile.timeLeft);
 
-            projectile.localAI[1] = positionOffset.Length();
-            projectile.rotation = positionOffset.ToRotation();
+            Projectile.localAI[1] = positionOffset.Length();
+            Projectile.rotation = positionOffset.ToRotation();
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
             for (int i = 0; i < shardCount; i++)
             {
-                Vector2 circleCenter = projectile.Center + new Vector2(projectile.localAI[1] * projectile.scale, 0).RotatedBy(projectile.rotation + i * MathHelper.TwoPi / shardCount);
+                Vector2 circleCenter = Projectile.Center + new Vector2(Projectile.localAI[1] * Projectile.scale, 0).RotatedBy(Projectile.rotation + i * MathHelper.TwoPi / shardCount);
                 float nearestX = Math.Max(targetHitbox.X, Math.Min(circleCenter.X, targetHitbox.X + targetHitbox.Size().X));
                 float nearestY = Math.Max(targetHitbox.Y, Math.Min(circleCenter.Y, targetHitbox.Y + targetHitbox.Size().Y));
                 if (new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < shardRadius)
@@ -2819,20 +2843,20 @@ namespace DeathsTerminus.NPCs.CataBoss
             return false;
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
             for (int i = 0; i < shardCount; i++)
             {
                 Rectangle frame = texture.Frame(1, 3);
 
-                spriteBatch.Draw(texture, projectile.Center - Main.screenPosition + new Vector2(projectile.localAI[1] * projectile.scale, 0).RotatedBy(projectile.rotation + i * MathHelper.TwoPi / shardCount), frame, Color.White, MathHelper.PiOver2 * (projectile.ai[0] + 1) + i * MathHelper.TwoPi / shardCount, new Vector2(12, 37), projectile.scale, SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition + new Vector2(Projectile.localAI[1] * Projectile.scale, 0).RotatedBy(Projectile.rotation + i * MathHelper.TwoPi / shardCount), frame, Color.White, MathHelper.PiOver2 * (Projectile.ai[0] + 1) + i * MathHelper.TwoPi / shardCount, new Vector2(12, 37), Projectile.scale, SpriteEffects.None, 0f);
             }
             return false;
         }
@@ -2840,60 +2864,61 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class IceShard : ModProjectile
     {
-        public override string Texture => "Terraria/Extra_35";
+        public override string Texture => "Terraria/Images/Extra_35";
 
         private static int shardRadius = 12;
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Ice Shard");
-            Main.projFrames[projectile.type] = 3;
+            // DisplayName.SetDefault("Ice Shard");
+            Main.projFrames[Projectile.type] = 3;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 24;
-            projectile.height = 24;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 200;
+            Projectile.width = 24;
+            Projectile.height = 24;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 200;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            projectile.velocity *= projectile.ai[0];
+            Projectile.velocity *= Projectile.ai[0];
 
-            projectile.rotation = projectile.velocity.ToRotation() - MathHelper.PiOver2;
+            Projectile.rotation = Projectile.velocity.ToRotation() - MathHelper.PiOver2;
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
-            Vector2 circleCenter = projectile.Center;
+            Vector2 circleCenter = Projectile.Center;
             float nearestX = Math.Max(targetHitbox.X, Math.Min(circleCenter.X, targetHitbox.X + targetHitbox.Size().X));
             float nearestY = Math.Max(targetHitbox.Y, Math.Min(circleCenter.Y, targetHitbox.Y + targetHitbox.Size().Y));
             return new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < shardRadius;
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
             Rectangle frame = texture.Frame(1, 3);
 
-            spriteBatch.Draw(texture, projectile.Center - Main.screenPosition, frame, Color.White, projectile.rotation, new Vector2(12, 37), projectile.scale, SpriteEffects.None, 0f);
+            Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition, frame, Color.White, Projectile.rotation, new Vector2(12, 37), Projectile.scale, SpriteEffects.None, 0f);
 
             return false;
         }
@@ -2901,53 +2926,51 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class IceShield : ModProjectile
     {
-        public override string Texture => "Terraria/Projectile_464";
-
-        private static int shardRadius = 12;
-
+        public override string Texture => "Terraria/Images/Projectile_464";
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Ice Shield");
-            Main.projFrames[projectile.type] = 1;
+            // DisplayName.SetDefault("Ice Shield");
+            Main.projFrames[Projectile.type] = 1;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 60;
-            projectile.height = 60;
-            projectile.alpha = 96;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 60;
+            Projectile.width = 60;
+            Projectile.height = 60;
+            Projectile.alpha = 96;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 60;
         }
 
         public override void AI()
         {
-            projectile.ai[0] += 0.01f;
-            projectile.rotation += projectile.ai[0];
-            projectile.alpha = projectile.timeLeft * 128 / 60;
+            Projectile.ai[0] += 0.01f;
+            Projectile.rotation += Projectile.ai[0];
+            Projectile.alpha = Projectile.timeLeft * 128 / 60;
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
-            Vector2 circleCenter = projectile.Center;
+            Vector2 circleCenter = Projectile.Center;
             float nearestX = Math.Max(targetHitbox.X, Math.Min(circleCenter.X, targetHitbox.X + targetHitbox.Size().X));
             float nearestY = Math.Max(targetHitbox.Y, Math.Min(circleCenter.Y, targetHitbox.Y + targetHitbox.Size().Y));
-            return new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < projectile.width / 2;
+            return new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < Projectile.width / 2;
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
             Rectangle frame = texture.Frame();
 
-            spriteBatch.Draw(texture, projectile.Center - Main.screenPosition, frame, Color.White * (1 - projectile.alpha / 255f), projectile.rotation, new Vector2(46, 51), projectile.scale, SpriteEffects.None, 0f);
+            Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition, frame, Color.White * (1 - Projectile.alpha / 255f), Projectile.rotation, new Vector2(46, 51), Projectile.scale, SpriteEffects.None, 0f);
 
             return false;
         }
@@ -2962,48 +2985,49 @@ namespace DeathsTerminus.NPCs.CataBoss
         //the arena!
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Orbiting Sigil");
-            Main.projFrames[projectile.type] = 4;
+            // DisplayName.SetDefault("Orbiting Sigil");
+            Main.projFrames[Projectile.type] = 4;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 2;
-            projectile.height = 2;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = false;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.scale = 2f;
-            projectile.timeLeft = 600;
+            Projectile.width = 2;
+            Projectile.height = 2;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = false;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.scale = 2f;
+            Projectile.timeLeft = 600;
         }
 
         public override void AI()
         {
-            if (projectile.localAI[0] == 0)
+            if (Projectile.localAI[0] == 0)
             {
-                projectile.timeLeft = (int)projectile.ai[0];
+                Projectile.timeLeft = (int)Projectile.ai[0];
             }
 
-            projectile.scale = 1f;
-            projectile.hostile = true;
+            Projectile.scale = 1f;
+            Projectile.hostile = true;
 
             //rotation increment
-            projectile.rotation += 0.01f;
+            Projectile.rotation += 0.01f;
 
             //set radius and center (replace with more dynamic AI later)
-            projectile.ai[1] = 1200 + Math.Max(0, 20 * (60 - projectile.localAI[0])) + Math.Max(0, 20 * (60 - projectile.timeLeft));
+            Projectile.ai[1] = 1200 + Math.Max(0, 20 * (60 - Projectile.localAI[0])) + Math.Max(0, 20 * (60 - Projectile.timeLeft));
 
-            if (projectile.scale >= 1)
+            if (Projectile.scale >= 1)
             {
-                if ((Main.LocalPlayer.Center - projectile.Center).Length() > projectile.ai[1] * projectile.scale)
+                if ((Main.LocalPlayer.Center - Projectile.Center).Length() > Projectile.ai[1] * Projectile.scale)
                 {
-                    Vector2 normal = (Main.LocalPlayer.Center - projectile.Center).SafeNormalize(Vector2.Zero);
-                    Vector2 relativeVelocity = Main.LocalPlayer.velocity - projectile.velocity;
+                    Vector2 normal = (Main.LocalPlayer.Center - Projectile.Center).SafeNormalize(Vector2.Zero);
+                    Vector2 relativeVelocity = Main.LocalPlayer.velocity - Projectile.velocity;
 
-                    Main.LocalPlayer.Center = projectile.Center + normal * projectile.ai[1] * projectile.scale;
+                    Main.LocalPlayer.Center = Projectile.Center + normal * Projectile.ai[1] * Projectile.scale;
 
                     if (relativeVelocity.X * normal.X + relativeVelocity.Y * normal.Y > 0)
                     {
@@ -3013,25 +3037,25 @@ namespace DeathsTerminus.NPCs.CataBoss
             }
 
             //frame stuff
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 3)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 3)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 4)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 4)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
 
-            projectile.localAI[0]++;
+            Projectile.localAI[0]++;
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
             for (int i = 0; i < sigilCount; i++)
             {
-                Vector2 circleCenter = projectile.Center + new Vector2(projectile.ai[1] * projectile.scale, 0).RotatedBy(projectile.rotation + i * MathHelper.TwoPi / sigilCount);
+                Vector2 circleCenter = Projectile.Center + new Vector2(Projectile.ai[1] * Projectile.scale, 0).RotatedBy(Projectile.rotation + i * MathHelper.TwoPi / sigilCount);
                 float nearestX = Math.Max(targetHitbox.X, Math.Min(circleCenter.X, targetHitbox.X + targetHitbox.Size().X));
                 float nearestY = Math.Max(targetHitbox.Y, Math.Min(circleCenter.Y, targetHitbox.Y + targetHitbox.Size().Y));
                 if (new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < sigilRadius)
@@ -3042,13 +3066,13 @@ namespace DeathsTerminus.NPCs.CataBoss
             return false;
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
             for (int i = 0; i < sigilCount; i++)
             {
-                spriteBatch.Draw(texture, projectile.Center - Main.screenPosition + new Vector2(projectile.ai[1] * projectile.scale, 0).RotatedBy(projectile.rotation + i * MathHelper.TwoPi / sigilCount), new Rectangle(0, 96 * projectile.frame, 66, 96), Color.White * projectile.scale, projectile.rotation + i * MathHelper.TwoPi / sigilCount, new Vector2(33, 65), projectile.scale, SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition + new Vector2(Projectile.ai[1] * Projectile.scale, 0).RotatedBy(Projectile.rotation + i * MathHelper.TwoPi / sigilCount), new Rectangle(0, 96 * Projectile.frame, 66, 96), Color.White * Projectile.scale, Projectile.rotation + i * MathHelper.TwoPi / sigilCount, new Vector2(33, 65), Projectile.scale, SpriteEffects.None, 0f);
             }
             return false;
         }
@@ -3058,8 +3082,8 @@ namespace DeathsTerminus.NPCs.CataBoss
     {
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Sun Lamp");
-
+            // DisplayName.SetDefault("Sun Lamp");
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
             /*
             int textureFramesX = 15;
             int textureFramesY = 4;
@@ -3138,46 +3162,46 @@ namespace DeathsTerminus.NPCs.CataBoss
 
         public override void SetDefaults()
         {
-            projectile.width = 48;
-            projectile.height = 48;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.timeLeft = 540;
-            projectile.scale = 0f;
+            Projectile.width = 48;
+            Projectile.height = 48;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.timeLeft = 540;
+            Projectile.scale = 0f;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
             DelegateMethods.v3_1 = new Vector3(255 / 128f, 220 / 128f, 64 / 128f);
-            Utils.PlotTileLine(projectile.Center + new Vector2(0, 2048), projectile.Center + new Vector2(0, -2048), 26, DelegateMethods.CastLight);
+            Utils.PlotTileLine(Projectile.Center + new Vector2(0, 2048), Projectile.Center + new Vector2(0, -2048), 26, DelegateMethods.CastLight);
 
-            if (projectile.scale < 1f && projectile.timeLeft > 60)
+            if (Projectile.scale < 1f && Projectile.timeLeft > 60)
             {
-                projectile.scale += 1 / 60f;
+                Projectile.scale += 1 / 60f;
             }
-            else if (projectile.timeLeft <= 60)
+            else if (Projectile.timeLeft <= 60)
             {
-                projectile.scale -= 1 / 60f;
-                projectile.velocity.X *= 0.95f;
+                Projectile.scale -= 1 / 60f;
+                Projectile.velocity.X *= 0.95f;
             }
 
-            projectile.direction = projectile.velocity.X > 0 ? 1 : -1;
+            Projectile.direction = Projectile.velocity.X > 0 ? 1 : -1;
 
-            if (projectile.timeLeft > 60)
+            if (Projectile.timeLeft > 60)
             {
-                if (projectile.Center.X < Main.LocalPlayer.Center.X ^ projectile.direction == 1)
+                if (Projectile.Center.X < Main.LocalPlayer.Center.X ^ Projectile.direction == 1)
                 {
-                    Vector2 normal = new Vector2(projectile.direction, 0);
-                    Vector2 relativeVelocity = Main.LocalPlayer.velocity - projectile.velocity;
+                    Vector2 normal = new Vector2(Projectile.direction, 0);
+                    Vector2 relativeVelocity = Main.LocalPlayer.velocity - Projectile.velocity;
 
-                    Main.LocalPlayer.Center = new Vector2(projectile.Center.X, Main.LocalPlayer.Center.Y);
+                    Main.LocalPlayer.Center = new Vector2(Projectile.Center.X, Main.LocalPlayer.Center.Y);
 
                     if (relativeVelocity.X * normal.X + relativeVelocity.Y * normal.Y > 0)
                     {
@@ -3186,37 +3210,37 @@ namespace DeathsTerminus.NPCs.CataBoss
                 }
             }
 
-            projectile.frame++;
-            if ((projectile.frame < 60 || projectile.frame >= 120) && projectile.ai[0] == 1)
+            Projectile.frame++;
+            if ((Projectile.frame < 60 || Projectile.frame >= 120) && Projectile.ai[0] == 1)
             {
-                projectile.frame = 60;
+                Projectile.frame = 60;
             }
-            else if (projectile.frame >= 60 && projectile.ai[0] == 0)
+            else if (Projectile.frame >= 60 && Projectile.ai[0] == 0)
             {
-                projectile.frame = 0;
+                Projectile.frame = 0;
             }
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
             float point = 0f;
-            return Collision.CheckAABBvLineCollision(targetHitbox.TopLeft(), targetHitbox.Size(), projectile.Center + new Vector2(0, 2048), projectile.Center + new Vector2(0, -2048), 64 * projectile.scale, ref point);
+            return Collision.CheckAABBvLineCollision(targetHitbox.TopLeft(), targetHitbox.Size(), Projectile.Center + new Vector2(0, 2048), Projectile.Center + new Vector2(0, -2048), 64 * Projectile.scale, ref point);
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
         //need to make wobble
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
-            Rectangle frame = texture.Frame(30, 4, projectile.frame / 4, projectile.frame % 4);
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
+            Rectangle frame = texture.Frame(30, 4, Projectile.frame / 4, Projectile.frame % 4);
 
-            for (int i = (int)((-Main.screenHeight + Main.screenPosition.Y - projectile.Center.Y) / frame.Height - 1); i <= (int)((Main.screenHeight + Main.screenPosition.Y - projectile.Center.Y) / frame.Height + 1); i++)
+            for (int i = (int)((-Main.screenHeight + Main.screenPosition.Y - Projectile.Center.Y) / frame.Height - 1); i <= (int)((Main.screenHeight + Main.screenPosition.Y - Projectile.Center.Y) / frame.Height + 1); i++)
             {
-                spriteBatch.Draw(texture, new Vector2(0, frame.Height * i) + projectile.Center - Main.screenPosition, frame, Color.White, projectile.rotation, frame.Size() / 2, new Vector2(projectile.scale, 1), SpriteEffects.None, 0f);
+                Main.EntitySpriteDraw(texture, new Vector2(0, frame.Height * i) + Projectile.Center - Main.screenPosition, frame, Color.White, Projectile.rotation, frame.Size() / 2, new Vector2(Projectile.scale, 1), SpriteEffects.None, 0f);
             }
 
             return false;
@@ -3225,89 +3249,92 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class BabyMothronProjectile : ModProjectile
     {
-        public override string Texture => "Terraria/NPC_479";
+        public override string Texture => "Terraria/Images/NPC_479";
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Baby Mothron");
-            Main.projFrames[projectile.type] = 3;
+            // DisplayName.SetDefault("Baby Mothron");
+            Main.projFrames[Projectile.type] = 3;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 36;
-            projectile.height = 36;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 400;
+            Projectile.width = 36;
+            Projectile.height = 36;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 400;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            if (projectile.timeLeft > 400 - 33)
+            if (Projectile.timeLeft > 400 - 33)
             {
-                projectile.velocity *= 0.95f;
+                Projectile.velocity *= 0.95f;
             }
             else
             {
-                projectile.velocity.Y += projectile.velocity.Y * projectile.velocity.Y / (projectile.Center.Y - projectile.ai[0]);
+                Projectile.velocity.Y += Projectile.velocity.Y * Projectile.velocity.Y / (Projectile.Center.Y - Projectile.ai[0]);
 
-                projectile.velocity = projectile.velocity.SafeNormalize(Vector2.Zero) * 6;
+                Projectile.velocity = Projectile.velocity.SafeNormalize(Vector2.Zero) * 6;
             }
-            projectile.rotation = projectile.velocity.ToRotation() + MathHelper.Pi;
-            projectile.direction = projectile.velocity.X > 0 ? -1 : 1;
-            projectile.spriteDirection = projectile.direction;
+            Projectile.rotation = Projectile.velocity.ToRotation() + MathHelper.Pi;
+            Projectile.direction = Projectile.velocity.X > 0 ? -1 : 1;
+            Projectile.spriteDirection = Projectile.direction;
 
             //test for death via ray of sunshine
-            projectile.ai[1] += 5 * projectile.direction;
-            if (projectile.ai[1] < projectile.Center.X ^ projectile.direction == 1)
+            Projectile.ai[1] += 5 * Projectile.direction;
+            if (Projectile.ai[1] < Projectile.Center.X ^ Projectile.direction == 1)
             {
-                projectile.Kill();
+                Projectile.Kill();
             }
 
             //frame stuff
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 4)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 4)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 3)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 3)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
         }
 
         public override void Kill(int timeLeft)
         {
-            Main.PlaySound(SoundID.NPCHit23, projectile.Center);
+            SoundEngine.PlaySound(SoundID.NPCHit23, Projectile.Center);
 
-            Gore.NewGore(projectile.position, projectile.velocity, 681, projectile.scale);
-            Gore.NewGore(projectile.position, projectile.velocity, 682, projectile.scale);
-            Gore.NewGore(projectile.position, projectile.velocity, 683, projectile.scale);
+            if (Main.netMode == NetmodeID.Server)
+                return;
+            Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.position, Projectile.velocity, 681, Projectile.scale);
+            Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.position, Projectile.velocity, 682, Projectile.scale);
+            Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.position, Projectile.velocity, 683, Projectile.scale);
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
-            Rectangle frame = texture.Frame(1, 3, 0, projectile.frame);
-            SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+            Rectangle frame = texture.Frame(1, 3, 0, Projectile.frame);
+            SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-            spriteBatch.Draw(texture, projectile.Center - Main.screenPosition, frame, Color.White, projectile.rotation, frame.Size() / 2, projectile.scale, effects, 0f);
+            Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition, frame, Color.White, Projectile.rotation, frame.Size() / 2, Projectile.scale, effects, 0f);
 
             return false;
         }
@@ -3317,64 +3344,65 @@ namespace DeathsTerminus.NPCs.CataBoss
     {
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Sprocket");
-            Main.projFrames[projectile.type] = 7;
+            // DisplayName.SetDefault("Sprocket");
+            Main.projFrames[Projectile.type] = 7;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         private float cogRotation = 0;
 
         public override void SetDefaults()
         {
-            projectile.width = 18;
-            projectile.height = 18;
-            projectile.alpha = 0;
-            projectile.light = 1f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 660;
+            Projectile.width = 18;
+            Projectile.height = 18;
+            Projectile.alpha = 0;
+            Projectile.light = 1f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 660;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            projectile.scale = projectile.ai[1] + 1f;
+            Projectile.scale = Projectile.ai[1] + 1f;
 
-            if (projectile.timeLeft > 60)
+            if (Projectile.timeLeft > 60)
             {
-                Player player = Main.player[Main.npc[(int)projectile.ai[0]].target];
+                Player player = Main.player[Main.npc[(int)Projectile.ai[0]].target];
 
-                if (projectile.timeLeft <= 600 - 60)
+                if (Projectile.timeLeft <= 600 - 60)
                 {
-                    projectile.hostile = true;
+                    Projectile.hostile = true;
 
-                    projectile.velocity -= new Vector2(0.25f, 0).RotatedBy(projectile.rotation) / projectile.scale;
-                    projectile.velocity *= 0.95f;
+                    Projectile.velocity -= new Vector2(0.25f, 0).RotatedBy(Projectile.rotation) / Projectile.scale;
+                    Projectile.velocity *= 0.95f;
 
-                    if (projectile.timeLeft == 600 - 60)
+                    if (Projectile.timeLeft == 600 - 60)
                     {
-                        Main.PlaySound(SoundID.Item122, projectile.Center);
+                        SoundEngine.PlaySound(SoundID.Item122, Projectile.Center);
                     }
-                    else if (projectile.timeLeft % 60 == 0)
+                    else if (Projectile.timeLeft % 60 == 0)
                     {
-                        Main.PlaySound(SoundID.Item15, projectile.Center);
+                        SoundEngine.PlaySound(SoundID.Item15, Projectile.Center);
                     }
                 }
                 else
                 {
-                    projectile.hostile = false;
+                    Projectile.hostile = false;
 
-                    projectile.velocity -= new Vector2(0.1f, 0).RotatedBy(projectile.rotation);
-                    projectile.velocity *= 0.95f;
+                    Projectile.velocity -= new Vector2(0.1f, 0).RotatedBy(Projectile.rotation);
+                    Projectile.velocity *= 0.95f;
                 }
 
-                float maxTurn = 0.02f / projectile.scale;
+                float maxTurn = 0.02f / Projectile.scale;
 
-                float rotationOffset = (player.Center - projectile.Center).ToRotation() - projectile.rotation;
+                float rotationOffset = (player.Center - Projectile.Center).ToRotation() - Projectile.rotation;
                 while (rotationOffset > MathHelper.Pi)
                 {
                     rotationOffset -= MathHelper.TwoPi;
@@ -3385,108 +3413,108 @@ namespace DeathsTerminus.NPCs.CataBoss
                 }
                 if (rotationOffset > maxTurn)
                 {
-                    projectile.rotation += maxTurn;
+                    Projectile.rotation += maxTurn;
                 }
                 else if (rotationOffset < -maxTurn)
                 {
-                    projectile.rotation -= maxTurn;
+                    Projectile.rotation -= maxTurn;
                 }
                 else
                 {
-                    projectile.rotation = (player.Center - projectile.Center).ToRotation();
+                    Projectile.rotation = (player.Center - Projectile.Center).ToRotation();
                 }
             }
             else
             {
-                projectile.hostile = false;
+                Projectile.hostile = false;
 
-                NPC boss = Main.npc[(int)projectile.ai[0]];
+                NPC boss = Main.npc[(int)Projectile.ai[0]];
 
-                projectile.velocity += (boss.Center + boss.velocity * projectile.timeLeft - projectile.Center - projectile.velocity * projectile.timeLeft) / (projectile.timeLeft * projectile.timeLeft);
+                Projectile.velocity += (boss.Center + boss.velocity * Projectile.timeLeft - Projectile.Center - Projectile.velocity * Projectile.timeLeft) / (Projectile.timeLeft * Projectile.timeLeft);
             }
 
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 3)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 3)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 7)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 7)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
 
-            cogRotation += projectile.velocity.X * 0.1f;
+            cogRotation += Projectile.velocity.X * 0.1f;
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
             float point = 0f;
-            return Collision.CheckAABBvLineCollision(targetHitbox.TopLeft(), targetHitbox.Size(), projectile.Center, projectile.Center + new Vector2(4096, 0).RotatedBy(projectile.rotation), 22 * projectile.scale, ref point);
+            return Collision.CheckAABBvLineCollision(targetHitbox.TopLeft(), targetHitbox.Size(), Projectile.Center, Projectile.Center + new Vector2(4096, 0).RotatedBy(Projectile.rotation), 22 * Projectile.scale, ref point);
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
             Rectangle frame;
             SpriteEffects effects;
 
             //draw the pet
-            Texture2D texture = Main.projectileTexture[projectile.type];
-            if (projectile.localAI[1] == 0)
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
+            if (Projectile.localAI[1] == 0)
             {
-                texture = mod.GetTexture("NPCs/CataBoss/DarkPetProjectile");
+                texture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/DarkPetProjectile").Value;
             }
 
-            frame = texture.Frame(1, 7, 0, projectile.frame);
-            effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+            frame = texture.Frame(1, 7, 0, Projectile.frame);
+            effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-            float wingRotation = projectile.velocity.X * 0.1f;
+            float wingRotation = Projectile.velocity.X * 0.1f;
 
-            spriteBatch.Draw(texture, projectile.Center - Main.screenPosition, frame, Color.White, wingRotation, frame.Size() / 2, projectile.scale, effects, 0f);
+            Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition, frame, Color.White, wingRotation, frame.Size() / 2, Projectile.scale, effects, 0f);
 
-            Texture2D texture2 = mod.GetTexture("NPCs/CataBoss/HeavenPetProjectile_Cog");
-            if (projectile.localAI[1] == 0)
+            Texture2D texture2 = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/HeavenPetProjectile_Cog").Value;
+            if (Projectile.localAI[1] == 0)
             {
-                texture2 = mod.GetTexture("NPCs/CataBoss/DarkPetProjectile_Cog");
+                texture2 = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/DarkPetProjectile_Cog").Value;
             }
 
             frame = texture2.Frame();
-            effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+            effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-            spriteBatch.Draw(texture2, projectile.Center - Main.screenPosition, frame, Color.White, cogRotation, frame.Size() / 2, projectile.scale, effects, 0f);
+            Main.EntitySpriteDraw(texture2, Projectile.Center - Main.screenPosition, frame, Color.White, cogRotation, frame.Size() / 2, Projectile.scale, effects, 0f);
 
 
-            if (projectile.timeLeft > 60)
+            if (Projectile.timeLeft > 60)
             {
                 //draw the prism
                 //adapted from last prism drawcode
-                Texture2D prismTexture = ModContent.GetTexture("Terraria/Projectile_633");
-                frame = prismTexture.Frame(1, 5, 0, (projectile.timeLeft / (projectile.timeLeft <= 600 - 60 ? 1 : 3)) % 5);
+                Texture2D prismTexture = TextureAssets.Projectile[633].Value;
+                frame = prismTexture.Frame(1, 5, 0, (Projectile.timeLeft / (Projectile.timeLeft <= 600 - 60 ? 1 : 3)) % 5);
                 effects = SpriteEffects.None;
-                Vector2 drawPosition = projectile.Center - Main.screenPosition + new Vector2(20 * projectile.scale, 0).RotatedBy(projectile.rotation);
+                Vector2 drawPosition = Projectile.Center - Main.screenPosition + new Vector2(20 * Projectile.scale, 0).RotatedBy(Projectile.rotation);
 
-                spriteBatch.Draw(prismTexture, drawPosition, frame, Color.White, projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, projectile.scale, effects, 0f);
+                Main.EntitySpriteDraw(prismTexture, drawPosition, frame, Color.White, Projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, Projectile.scale, effects, 0f);
 
-                float scaleFactor2 = (float)Math.Cos(Math.PI * 2f * (projectile.timeLeft / 30f)) * 2f + 2f;
-                if (projectile.timeLeft <= 600 - 60)
+                float scaleFactor2 = (float)Math.Cos(Math.PI * 2f * (Projectile.timeLeft / 30f)) * 2f + 2f;
+                if (Projectile.timeLeft <= 600 - 60)
                 {
                     scaleFactor2 = 4f;
                 }
                 for (float num350 = 0f; num350 < 4f; num350 += 1f)
                 {
-                    spriteBatch.Draw(prismTexture, drawPosition + new Vector2(0, 1).RotatedBy(num350 * (Math.PI * 2f) / 4f) * scaleFactor2, frame, Color.White.MultiplyRGBA(new Color(255, 255, 255, 0)) * 0.03f, projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, projectile.scale, effects, 0f);
+                    Main.EntitySpriteDraw(prismTexture, drawPosition + new Vector2(0, 1).RotatedBy(num350 * (Math.PI * 2f) / 4f) * scaleFactor2, frame, Color.White.MultiplyRGBA(new Color(255, 255, 255, 0)) * 0.03f, Projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, Projectile.scale, effects, 0f);
                 }
 
-                if (projectile.timeLeft > 600 - 60)
+                if (Projectile.timeLeft > 600 - 60)
                 {
                     //draw the telegraph line
-                    float telegraphAlpha = (60 + projectile.timeLeft - 600) / 30f * (600 - projectile.timeLeft) / 30f;
-                    spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/HeavenPetProjectileTelegraph"), projectile.Center + new Vector2(30 * projectile.scale, 0).RotatedBy(projectile.rotation) - Main.screenPosition, new Rectangle(0, 0, 1, 1), Color.White * telegraphAlpha, projectile.rotation, new Vector2(0, 0.5f), new Vector2(4096, 1), SpriteEffects.None, 0f);
+                    float telegraphAlpha = (60 + Projectile.timeLeft - 600) / 30f * (600 - Projectile.timeLeft) / 30f;
+                    Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/HeavenPetProjectileTelegraph").Value, Projectile.Center + new Vector2(30 * Projectile.scale, 0).RotatedBy(Projectile.rotation) - Main.screenPosition, new Rectangle(0, 0, 1, 1), Color.White * telegraphAlpha, Projectile.rotation, new Vector2(0, 0.5f), new Vector2(4096, 1), SpriteEffects.None, 0f);
                 }
                 else
                 {
@@ -3496,27 +3524,27 @@ namespace DeathsTerminus.NPCs.CataBoss
                     for (int i = 0; i < 6; i++)
                     {
                         //texture
-                        Texture2D tex7 = ModContent.GetTexture("Terraria/Projectile_632");
+                        Texture2D tex7 = TextureAssets.Projectile[632].Value;
                         //laser length
                         float num528 = 4096;
 
                         Color value42 = Main.hslToRgb(i / 6f, 1f, 0.5f);
                         value42.A = 0;
 
-                        Vector2 drawOffset = new Vector2(4, 0).RotatedBy(projectile.timeLeft * 0.5f + i * MathHelper.TwoPi / 6);
+                        Vector2 drawOffset = new Vector2(4, 0).RotatedBy(Projectile.timeLeft * 0.5f + i * MathHelper.TwoPi / 6);
 
                         //start position
-                        Vector2 value45 = projectile.Center.Floor() + drawOffset + new Vector2(36 * projectile.scale, 0).RotatedBy(projectile.rotation);
+                        Vector2 value45 = Projectile.Center.Floor() + drawOffset + new Vector2(36 * Projectile.scale, 0).RotatedBy(Projectile.rotation);
 
-                        value45 += Vector2.UnitX.RotatedBy(projectile.rotation) * projectile.scale * 10.5f;
-                        num528 -= projectile.scale * 14.5f * projectile.scale;
-                        Vector2 vector90 = new Vector2(projectile.scale);
+                        value45 += Vector2.UnitX.RotatedBy(Projectile.rotation) * Projectile.scale * 10.5f;
+                        num528 -= Projectile.scale * 14.5f * Projectile.scale;
+                        Vector2 vector90 = new Vector2(Projectile.scale);
                         DelegateMethods.f_1 = 1f;
-                        DelegateMethods.c_1 = value42 * 0.75f * projectile.Opacity;
-                        _ = projectile.oldPos[0] + new Vector2((float)projectile.width, (float)projectile.height) / 2f + Vector2.UnitY * projectile.gfxOffY - Main.screenPosition;
-                        Utils.DrawLaser(spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(projectile.rotation) * num528 - Main.screenPosition, vector90, DelegateMethods.RainbowLaserDraw);
-                        DelegateMethods.c_1 = new Color(255, 255, 255, 127) * 0.75f * projectile.Opacity;
-                        Utils.DrawLaser(spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(projectile.rotation) * num528 - Main.screenPosition, vector90 / 2f, DelegateMethods.RainbowLaserDraw);
+                        DelegateMethods.c_1 = value42 * 0.75f * Projectile.Opacity;
+                        _ = Projectile.oldPos[0] + new Vector2((float)Projectile.width, (float)Projectile.height) / 2f + Vector2.UnitY * Projectile.gfxOffY - Main.screenPosition;
+                        Utils.DrawLaser(Main.spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(Projectile.rotation) * num528 - Main.screenPosition, vector90, DelegateMethods.RainbowLaserDraw);
+                        DelegateMethods.c_1 = new Color(255, 255, 255, 127) * 0.75f * Projectile.Opacity;
+                        Utils.DrawLaser(Main.spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(Projectile.rotation) * num528 - Main.screenPosition, vector90 / 2f, DelegateMethods.RainbowLaserDraw);
                     }
                 }
             }
@@ -3527,60 +3555,61 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class CataLastPrism : ModProjectile
     {
-        public override string Texture => "Terraria/Projectile_633";
+        public override string Texture => "Terraria/Images/Projectile_633";
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Last Prism");
-            Main.projFrames[projectile.type] = 5;
+            // DisplayName.SetDefault("Last Prism");
+            Main.projFrames[Projectile.type] = 5;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 18;
-            projectile.height = 18;
-            projectile.alpha = 0;
-            projectile.light = 1f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 600;
+            Projectile.width = 18;
+            Projectile.height = 18;
+            Projectile.alpha = 0;
+            Projectile.light = 1f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 600;
         }
 
         public override void AI()
         {
-            projectile.scale = projectile.ai[1] + 1f;
+            Projectile.scale = Projectile.ai[1] + 1f;
 
-            Player player = Main.player[Main.npc[(int)projectile.ai[0]].target];
+            Player player = Main.player[Main.npc[(int)Projectile.ai[0]].target];
 
-            if (projectile.timeLeft <= 540 - 60)
+            if (Projectile.timeLeft <= 540 - 60)
             {
-                projectile.hostile = true;
+                Projectile.hostile = true;
 
-                projectile.Center = Main.npc[(int)projectile.ai[0]].Center;
+                Projectile.Center = Main.npc[(int)Projectile.ai[0]].Center;
 
-                if (projectile.timeLeft == 540 - 60)
+                if (Projectile.timeLeft == 540 - 60)
                 {
-                    Main.PlaySound(SoundID.Item122, projectile.Center);
+                    SoundEngine.PlaySound(SoundID.Item122, Projectile.Center);
                 }
-                else if (projectile.timeLeft % 60 == 0)
+                else if (Projectile.timeLeft % 60 == 0)
                 {
-                    Main.PlaySound(SoundID.Item15, projectile.Center);
+                    SoundEngine.PlaySound(SoundID.Item15, Projectile.Center);
                 }
             }
             else
             {
-                projectile.hostile = false;
+                Projectile.hostile = false;
 
-                projectile.Center = Main.npc[(int)projectile.ai[0]].Center;
+                Projectile.Center = Main.npc[(int)Projectile.ai[0]].Center;
             }
 
-            float maxTurn = 0.0175f / projectile.scale;
+            float maxTurn = 0.0175f / Projectile.scale;
 
-            float rotationOffset = (player.Center - projectile.Center).ToRotation() - projectile.rotation;
+            float rotationOffset = (player.Center - Projectile.Center).ToRotation() - Projectile.rotation;
             while (rotationOffset > MathHelper.Pi)
             {
                 rotationOffset -= MathHelper.TwoPi;
@@ -3591,64 +3620,64 @@ namespace DeathsTerminus.NPCs.CataBoss
             }
             if (rotationOffset > maxTurn)
             {
-                projectile.rotation += maxTurn;
+                Projectile.rotation += maxTurn;
             }
             else if (rotationOffset < -maxTurn)
             {
-                projectile.rotation -= maxTurn;
+                Projectile.rotation -= maxTurn;
             }
             else
             {
-                projectile.rotation = (player.Center - projectile.Center).ToRotation();
+                Projectile.rotation = (player.Center - Projectile.Center).ToRotation();
             }
 
-            while (projectile.rotation >= MathHelper.TwoPi)
+            while (Projectile.rotation >= MathHelper.TwoPi)
             {
-                projectile.rotation -= MathHelper.TwoPi;
+                Projectile.rotation -= MathHelper.TwoPi;
             }
-            while (projectile.rotation < 0)
+            while (Projectile.rotation < 0)
             {
-                projectile.rotation += MathHelper.TwoPi;
+                Projectile.rotation += MathHelper.TwoPi;
             }
 
-            Main.npc[(int)projectile.ai[0]].direction = (projectile.rotation > MathHelper.PiOver2 && projectile.rotation < 3 * MathHelper.PiOver2) ? -1 : 1;
+            Main.npc[(int)Projectile.ai[0]].direction = (Projectile.rotation > MathHelper.PiOver2 && Projectile.rotation < 3 * MathHelper.PiOver2) ? -1 : 1;
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
             float point = 0f;
-            return Collision.CheckAABBvLineCollision(targetHitbox.TopLeft(), targetHitbox.Size(), projectile.Center, projectile.Center + new Vector2(4096, 0).RotatedBy(projectile.rotation), 44 * projectile.scale, ref point);
+            return Collision.CheckAABBvLineCollision(targetHitbox.TopLeft(), targetHitbox.Size(), Projectile.Center, Projectile.Center + new Vector2(4096, 0).RotatedBy(Projectile.rotation), 44 * Projectile.scale, ref point);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
             Rectangle frame;
             SpriteEffects effects;
 
             //draw the prism
             //adapted from last prism drawcode
-            Texture2D prismTexture = Main.projectileTexture[projectile.type];
-            frame = prismTexture.Frame(1, 5, 0, (projectile.timeLeft / (projectile.timeLeft <= 600 - 60 ? 1 : 3)) % 5);
+            Texture2D prismTexture = TextureAssets.Projectile[Projectile.type].Value;
+            frame = prismTexture.Frame(1, 5, 0, (Projectile.timeLeft / (Projectile.timeLeft <= 600 - 60 ? 1 : 3)) % 5);
             effects = SpriteEffects.None;
-            Vector2 drawPosition = projectile.Center - Main.screenPosition + new Vector2(20 * projectile.scale, 0).RotatedBy(projectile.rotation);
+            Vector2 drawPosition = Projectile.Center - Main.screenPosition + new Vector2(20 * Projectile.scale, 0).RotatedBy(Projectile.rotation);
 
-            spriteBatch.Draw(prismTexture, drawPosition, frame, Color.White, projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, projectile.scale, effects, 0f);
+            Main.EntitySpriteDraw(prismTexture, drawPosition, frame, Color.White, Projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, Projectile.scale, effects, 0f);
 
-            float scaleFactor2 = (float)Math.Cos(Math.PI * 2f * (projectile.timeLeft / 30f)) * 2f + 2f;
-            if (projectile.timeLeft <= 540 - 60)
+            float scaleFactor2 = (float)Math.Cos(Math.PI * 2f * (Projectile.timeLeft / 30f)) * 2f + 2f;
+            if (Projectile.timeLeft <= 540 - 60)
             {
                 scaleFactor2 = 4f;
             }
             for (float num350 = 0f; num350 < 4f; num350 += 1f)
             {
-                spriteBatch.Draw(prismTexture, drawPosition + new Vector2(0, 1).RotatedBy(num350 * (Math.PI * 2f) / 4f) * scaleFactor2, frame, Color.White.MultiplyRGBA(new Color(255, 255, 255, 0)) * 0.03f, projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, projectile.scale, effects, 0f);
+                Main.EntitySpriteDraw(prismTexture, drawPosition + new Vector2(0, 1).RotatedBy(num350 * (Math.PI * 2f) / 4f) * scaleFactor2, frame, Color.White.MultiplyRGBA(new Color(255, 255, 255, 0)) * 0.03f, Projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, Projectile.scale, effects, 0f);
             }
 
-            if (projectile.timeLeft > 540 - 60)
+            if (Projectile.timeLeft > 540 - 60)
             {
                 //draw the telegraph line
-                float telegraphAlpha = (60 + projectile.timeLeft - 540) / 30f * (540 - projectile.timeLeft) / 30f;
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/HeavenPetProjectileTelegraph"), projectile.Center + new Vector2(30 * projectile.scale, 0).RotatedBy(projectile.rotation) - Main.screenPosition, new Rectangle(0, 0, 1, 1), Color.White * telegraphAlpha, projectile.rotation, new Vector2(0, 0.5f), new Vector2(4096, 1), SpriteEffects.None, 0f);
+                float telegraphAlpha = (60 + Projectile.timeLeft - 540) / 30f * (540 - Projectile.timeLeft) / 30f;
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/HeavenPetProjectileTelegraph").Value, Projectile.Center + new Vector2(30 * Projectile.scale, 0).RotatedBy(Projectile.rotation) - Main.screenPosition, new Rectangle(0, 0, 1, 1), Color.White * telegraphAlpha, Projectile.rotation, new Vector2(0, 0.5f), new Vector2(4096, 1), SpriteEffects.None, 0f);
             }
             else
             {
@@ -3658,27 +3687,27 @@ namespace DeathsTerminus.NPCs.CataBoss
                 for (int i = 0; i < 6; i++)
                 {
                     //texture
-                    Texture2D tex7 = ModContent.GetTexture("Terraria/Projectile_632");
+                    Texture2D tex7 = TextureAssets.Projectile[632].Value;
                     //laser length
                     float num528 = 4096;
 
                     Color value42 = Main.hslToRgb(i / 6f, 1f, 0.5f);
                     value42.A = 0;
 
-                    Vector2 drawOffset = new Vector2(4, 0).RotatedBy(projectile.timeLeft * 0.5f + i * MathHelper.TwoPi / 6);
+                    Vector2 drawOffset = new Vector2(4, 0).RotatedBy(Projectile.timeLeft * 0.5f + i * MathHelper.TwoPi / 6);
 
                     //start position
-                    Vector2 value45 = projectile.Center.Floor() + drawOffset + new Vector2(46 * projectile.scale, 0).RotatedBy(projectile.rotation);
+                    Vector2 value45 = Projectile.Center.Floor() + drawOffset + new Vector2(46 * Projectile.scale, 0).RotatedBy(Projectile.rotation);
 
-                    value45 += Vector2.UnitX.RotatedBy(projectile.rotation) * projectile.scale * 10.5f;
-                    num528 -= projectile.scale * 14.5f * projectile.scale;
-                    Vector2 vector90 = new Vector2(projectile.scale * 2);
+                    value45 += Vector2.UnitX.RotatedBy(Projectile.rotation) * Projectile.scale * 10.5f;
+                    num528 -= Projectile.scale * 14.5f * Projectile.scale;
+                    Vector2 vector90 = new Vector2(Projectile.scale * 2);
                     DelegateMethods.f_1 = 1f;
-                    DelegateMethods.c_1 = value42 * 0.75f * projectile.Opacity;
-                    _ = projectile.oldPos[0] + new Vector2((float)projectile.width, (float)projectile.height) / 2f + Vector2.UnitY * projectile.gfxOffY - Main.screenPosition;
-                    Utils.DrawLaser(spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(projectile.rotation) * num528 - Main.screenPosition, vector90, DelegateMethods.RainbowLaserDraw);
-                    DelegateMethods.c_1 = new Color(255, 255, 255, 127) * 0.75f * projectile.Opacity;
-                    Utils.DrawLaser(spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(projectile.rotation) * num528 - Main.screenPosition, vector90 / 2f, DelegateMethods.RainbowLaserDraw);
+                    DelegateMethods.c_1 = value42 * 0.75f * Projectile.Opacity;
+                    _ = Projectile.oldPos[0] + new Vector2((float)Projectile.width, (float)Projectile.height) / 2f + Vector2.UnitY * Projectile.gfxOffY - Main.screenPosition;
+                    Utils.DrawLaser(Main.spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(Projectile.rotation) * num528 - Main.screenPosition, vector90, DelegateMethods.RainbowLaserDraw);
+                    DelegateMethods.c_1 = new Color(255, 255, 255, 127) * 0.75f * Projectile.Opacity;
+                    Utils.DrawLaser(Main.spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(Projectile.rotation) * num528 - Main.screenPosition, vector90 / 2f, DelegateMethods.RainbowLaserDraw);
                 }
             }
 
@@ -3688,15 +3717,16 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class FishronPlatform : ModProjectile
     {
-        public override string Texture => "Terraria/NPC_370";
+        public override string Texture => "Terraria/Images/NPC_370";
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Sitting Duke");
-            Main.projFrames[projectile.type] = 8;
+            // DisplayName.SetDefault("Sitting Duke");
+            Main.projFrames[Projectile.type] = 8;
 
-            ProjectileID.Sets.TrailCacheLength[projectile.type] = 5;
-            ProjectileID.Sets.TrailingMode[projectile.type] = 2;
+            ProjectileID.Sets.TrailCacheLength[Projectile.type] = 5;
+            ProjectileID.Sets.TrailingMode[Projectile.type] = 2;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         float bubbleShotProgress = 0f;
@@ -3704,35 +3734,35 @@ namespace DeathsTerminus.NPCs.CataBoss
 
         public override void SetDefaults()
         {
-            projectile.width = 100;
-            projectile.height = 100;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 400;
+            Projectile.width = 100;
+            Projectile.height = 100;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 400;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            if (projectile.ai[1] == 0)
+            if (Projectile.ai[1] == 0)
             {
-                NPC boss = Main.npc[(int)projectile.ai[0]];
+                NPC boss = Main.npc[(int)Projectile.ai[0]];
                 Player player = Main.player[boss.target];
 
                 float determinant = Math.Max(0, (boss.velocity.Y - player.velocity.Y) * (boss.velocity.Y - player.velocity.Y) - 4 * 0.45f * (boss.Center.Y - player.Center.Y + 240));
                 float eta = Math.Max(3, (-(boss.velocity.Y - player.velocity.Y) + (float)Math.Sqrt(determinant)) / 0.9f);
-                Vector2 targetPoint = new Vector2(boss.Center.X + boss.velocity.X * eta, player.Center.Y + 240 + player.velocity.Y * eta + projectile.height);
-                Vector2 targetVelocity = (targetPoint - projectile.Center) / eta;
-                projectile.velocity += (targetVelocity - projectile.velocity) / 10f;
+                Vector2 targetPoint = new Vector2(boss.Center.X + boss.velocity.X * eta, player.Center.Y + 240 + player.velocity.Y * eta + Projectile.height);
+                Vector2 targetVelocity = (targetPoint - Projectile.Center) / eta;
+                Projectile.velocity += (targetVelocity - Projectile.velocity) / 10f;
 
-                bubbleShotProgress += Math.Abs(projectile.velocity.X);
+                bubbleShotProgress += Math.Abs(Projectile.velocity.X);
                 if (bubbleShotProgress >= 80)
                 {
                     bubbleShotProgress = 0;
@@ -3740,34 +3770,34 @@ namespace DeathsTerminus.NPCs.CataBoss
                     if (bubbleCount == 4)
                     {
                         bubbleCount = 0;
-                        if (Main.netMode != 1)
-                            Projectile.NewProjectile(projectile.Center, Vector2.Zero, ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 0.995f, ai1: 0.1f);
+                        if (Main.netMode != NetmodeID.MultiplayerClient)
+                            Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, Vector2.Zero, ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 0.995f, ai1: 0.1f);
                     }
                     else
                     {
-                        if (Main.netMode != 1)
-                            Projectile.NewProjectile(projectile.Center, Vector2.Zero, ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 0.95f, ai1: -0.08f);
+                        if (Main.netMode != NetmodeID.MultiplayerClient)
+                            Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, Vector2.Zero, ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 0.95f, ai1: -0.08f);
                     }
                 }
             }
             else
             {
-                projectile.velocity.Y += 0.15f;
+                Projectile.velocity.Y += 0.15f;
             }
 
-            projectile.rotation = projectile.velocity.ToRotation();
-            projectile.direction = projectile.velocity.X > 0 ? 1 : -1;
-            projectile.spriteDirection = projectile.direction;
+            Projectile.rotation = Projectile.velocity.ToRotation();
+            Projectile.direction = Projectile.velocity.X > 0 ? 1 : -1;
+            Projectile.spriteDirection = Projectile.direction;
 
             //frame stuff
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 3)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 3)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 8)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 8)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
         }
@@ -3776,41 +3806,42 @@ namespace DeathsTerminus.NPCs.CataBoss
         {
             if (timeLeft > 0)
             {
-                Main.PlaySound(SoundID.NPCHit14, projectile.Center);
-
-                Gore.NewGore(projectile.Center - Vector2.UnitX * 20f * (float)projectile.direction, projectile.velocity, 576, projectile.scale);
-                Gore.NewGore(projectile.Center - Vector2.UnitY * 30f, projectile.velocity, 574, projectile.scale);
-                Gore.NewGore(projectile.Center, projectile.velocity, 575, projectile.scale);
-                Gore.NewGore(projectile.Center + Vector2.UnitX * 20f * (float)projectile.direction, projectile.velocity, 573, projectile.scale);
-                Gore.NewGore(projectile.Center - Vector2.UnitY * 30f, projectile.velocity, 574, projectile.scale);
-                Gore.NewGore(projectile.Center, projectile.velocity, 575, projectile.scale);
-
-                NPC boss = Main.npc[(int)projectile.ai[0]];
+                SoundEngine.PlaySound(SoundID.NPCHit14, Projectile.Center);
+                if (Main.netMode != NetmodeID.Server)
+                {
+                    Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center - Vector2.UnitX * 20f * (float)Projectile.direction, Projectile.velocity, 576, Projectile.scale);
+                    Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center - Vector2.UnitY * 30f, Projectile.velocity, 574, Projectile.scale);
+                    Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center, Projectile.velocity, 575, Projectile.scale);
+                    Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center + Vector2.UnitX * 20f * (float)Projectile.direction, Projectile.velocity, 573, Projectile.scale);
+                    Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center - Vector2.UnitY * 30f, Projectile.velocity, 574, Projectile.scale);
+                    Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center, Projectile.velocity, 575, Projectile.scale);
+                }
+                NPC boss = Main.npc[(int)Projectile.ai[0]];
 
                 for (int i = 0; i < 12; i++)
                 {
-                    Projectile.NewProjectile(projectile.Center, new Vector2(boss.velocity.X * 0.5f, 0) + new Vector2(6, 0).RotatedBy(i * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 0.99f, ai1: 0.08f);
-                    Projectile.NewProjectile(projectile.Center, new Vector2(boss.velocity.X * 0.5f, 0) + new Vector2(3, 0).RotatedBy((i + 0.5f) * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 0.99f, ai1: 0.08f);
+                    Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, new Vector2(boss.velocity.X * 0.5f, 0) + new Vector2(6, 0).RotatedBy(i * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 0.99f, ai1: 0.08f);
+                    Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, new Vector2(boss.velocity.X * 0.5f, 0) + new Vector2(3, 0).RotatedBy((i + 0.5f) * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 0.99f, ai1: 0.08f);
                 }
             }
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
-            Rectangle frame = texture.Frame(1, 8, 0, projectile.frame);
-            SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+            Rectangle frame = texture.Frame(1, 8, 0, Projectile.frame);
+            SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-            for (int i = projectile.oldPos.Length - 1; i >= 0; i--)
+            for (int i = Projectile.oldPos.Length - 1; i >= 0; i--)
             {
-                float alpha = (projectile.oldPos.Length - i) / (float)projectile.oldPos.Length;
-                spriteBatch.Draw(texture, projectile.oldPos[i] + projectile.Center - projectile.position - Main.screenPosition, frame, Color.White * alpha, projectile.oldRot[i], frame.Size() / 2, projectile.scale, effects, 0f);
+                float alpha = (Projectile.oldPos.Length - i) / (float)Projectile.oldPos.Length;
+                Main.EntitySpriteDraw(texture, Projectile.oldPos[i] + Projectile.Center - Projectile.position - Main.screenPosition, frame, Color.White * alpha, Projectile.oldRot[i], frame.Size() / 2, Projectile.scale, effects, 0f);
             }
 
             return false;
@@ -3819,119 +3850,121 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class DoomedFishron : ModProjectile
     {
-        public override string Texture => "Terraria/NPC_370";
+        public override string Texture => "Terraria/Images/NPC_370";
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Doomed Fishron");
-            Main.projFrames[projectile.type] = 8;
+            // DisplayName.SetDefault("Doomed Fishron");
+            Main.projFrames[Projectile.type] = 8;
 
-            ProjectileID.Sets.TrailCacheLength[projectile.type] = 5;
-            ProjectileID.Sets.TrailingMode[projectile.type] = 2;
+            ProjectileID.Sets.TrailCacheLength[Projectile.type] = 5;
+            ProjectileID.Sets.TrailingMode[Projectile.type] = 2;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         float bubbleShotProgress = 0f;
 
         public override void SetDefaults()
         {
-            projectile.width = 100;
-            projectile.height = 100;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 90;
+            Projectile.width = 100;
+            Projectile.height = 100;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 90;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            projectile.rotation = projectile.velocity.ToRotation();
-            projectile.direction = projectile.velocity.X > 0 ? 1 : -1;
-            projectile.spriteDirection = projectile.direction;
+            Projectile.rotation = Projectile.velocity.ToRotation();
+            Projectile.direction = Projectile.velocity.X > 0 ? 1 : -1;
+            Projectile.spriteDirection = Projectile.direction;
 
-            bubbleShotProgress += Math.Abs(projectile.velocity.X);
+            bubbleShotProgress += Math.Abs(Projectile.velocity.X);
 
-            float bubbleShotProgressRequired = 160 * 200 / (200f + projectile.timeLeft);
+            float bubbleShotProgressRequired = 160 * 200 / (200f + Projectile.timeLeft);
 
             if (bubbleShotProgress >= bubbleShotProgressRequired)
             {
                 bubbleShotProgress -= bubbleShotProgressRequired;
-                if (Main.netMode != 1)
+                if (Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    Projectile.NewProjectile(projectile.Center - new Vector2(projectile.direction * bubbleShotProgress, 0), Vector2.Zero, ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f, ai1: 0.05f);
-                    Projectile.NewProjectile(projectile.Center - new Vector2(projectile.direction * bubbleShotProgress, 0), Vector2.Zero, ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f, ai1: -0.05f);
+                    Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center - new Vector2(Projectile.direction * bubbleShotProgress, 0), Vector2.Zero, ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f, ai1: 0.05f);
+                    Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center - new Vector2(Projectile.direction * bubbleShotProgress, 0), Vector2.Zero, ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f, ai1: -0.05f);
                 }
             }
 
-            if (projectile.timeLeft == 60)
+            if (Projectile.timeLeft == 60)
             {
-                if (Main.netMode != 1)
+                if (Main.netMode != NetmodeID.MultiplayerClient)
                 {
                     for (int i = 0; i < 12; i++)
                     {
-                        Projectile.NewProjectile(projectile.Center, new Vector2(6, 0).RotatedBy(i * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f);//, ai0: 0.99f, ai1: 0.08f);
-                        Projectile.NewProjectile(projectile.Center, new Vector2(3, 0).RotatedBy((i + 0.5f) * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f);//, ai0: 0.99f, ai1: 0.08f);
+                        Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, new Vector2(6, 0).RotatedBy(i * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f);//, ai0: 0.99f, ai1: 0.08f);
+                        Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, new Vector2(3, 0).RotatedBy((i + 0.5f) * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f);//, ai0: 0.99f, ai1: 0.08f);
                     }
                 }
             }
 
             //frame stuff
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 3)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 3)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 8)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 8)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
         }
 
         public override void Kill(int timeLeft)
         {
-            Main.PlaySound(SoundID.NPCHit14, projectile.Center);
-
-            Gore.NewGore(projectile.Center - Vector2.UnitX * 20f * (float)projectile.direction, projectile.velocity, 576, projectile.scale);
-            Gore.NewGore(projectile.Center - Vector2.UnitY * 30f, projectile.velocity, 574, projectile.scale);
-            Gore.NewGore(projectile.Center, projectile.velocity, 575, projectile.scale);
-            Gore.NewGore(projectile.Center + Vector2.UnitX * 20f * (float)projectile.direction, projectile.velocity, 573, projectile.scale);
-            Gore.NewGore(projectile.Center - Vector2.UnitY * 30f, projectile.velocity, 574, projectile.scale);
-            Gore.NewGore(projectile.Center, projectile.velocity, 575, projectile.scale);
-
+            SoundEngine.PlaySound(SoundID.NPCHit14, Projectile.Center);
+            if (Main.netMode == NetmodeID.Server)
+            {
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center - Vector2.UnitX * 20f * (float)Projectile.direction, Projectile.velocity, 576, Projectile.scale);
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center - Vector2.UnitY * 30f, Projectile.velocity, 574, Projectile.scale);
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center, Projectile.velocity, 575, Projectile.scale);
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center + Vector2.UnitX * 20f * (float)Projectile.direction, Projectile.velocity, 573, Projectile.scale);
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center - Vector2.UnitY * 30f, Projectile.velocity, 574, Projectile.scale);
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.Center, Projectile.velocity, 575, Projectile.scale);
+            }
             for (int i = 0; i < 12; i++)
             {
-                Projectile.NewProjectile(projectile.Center, new Vector2(6, 0).RotatedBy(i * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f);//, ai0: 0.99f, ai1: 0.08f);
-                Projectile.NewProjectile(projectile.Center, new Vector2(3, 0).RotatedBy((i + 0.5f) * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f);//, ai0: 0.99f, ai1: 0.08f);
+                Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, new Vector2(6, 0).RotatedBy(i * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f);//, ai0: 0.99f, ai1: 0.08f);
+                Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, new Vector2(3, 0).RotatedBy((i + 0.5f) * MathHelper.TwoPi / 8), ModContent.ProjectileType<FloatingBubble>(), 80, 0f, Main.myPlayer, ai0: 1f);//, ai0: 0.99f, ai1: 0.08f);
             }
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
-            Rectangle frame = texture.Frame(1, 8, 0, projectile.frame);
-            SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+            Rectangle frame = texture.Frame(1, 8, 0, Projectile.frame);
+            SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-            for (int i = projectile.oldPos.Length - 1; i >= 0; i--)
+            for (int i = Projectile.oldPos.Length - 1; i >= 0; i--)
             {
-                float alpha = (projectile.oldPos.Length - i) / (float)projectile.oldPos.Length;
-                spriteBatch.Draw(texture, projectile.oldPos[i] + projectile.Center - projectile.position - Main.screenPosition, frame, Color.White * alpha, projectile.oldRot[i], frame.Size() / 2, projectile.scale, effects, 0f);
+                float alpha = (Projectile.oldPos.Length - i) / (float)Projectile.oldPos.Length;
+                Main.EntitySpriteDraw(texture, Projectile.oldPos[i] + Projectile.Center - Projectile.position - Main.screenPosition, frame, Color.White * alpha, Projectile.oldRot[i], frame.Size() / 2, Projectile.scale, effects, 0f);
             }
 
-            spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossScytheTelegraph"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Teal * 0.25f, projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(projectile.velocity.Length(), projectile.width / 128f), SpriteEffects.None, 0f);
-            spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossTelegraphCap"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Teal * 0.25f, (-projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(projectile.width / 128f, projectile.width / 128f), SpriteEffects.None, 0f);
+            Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossScytheTelegraph").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Teal * 0.25f, Projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(Projectile.velocity.Length(), Projectile.width / 128f), SpriteEffects.None, 0f);
+            Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossTelegraphCap").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.Teal * 0.25f, (-Projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(Projectile.width / 128f, Projectile.width / 128f), SpriteEffects.None, 0f);
 
             return false;
         }
@@ -3939,57 +3972,58 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class FloatingBubble : ModProjectile
     {
-        public override string Texture => "Terraria/NPC_371";
+        public override string Texture => "Terraria/Images/NPC_371";
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Death Bubble");
-            Main.projFrames[projectile.type] = 2;
+            // DisplayName.SetDefault("Death Bubble");
+            Main.projFrames[Projectile.type] = 2;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 48;
-            projectile.height = 48;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 480;
+            Projectile.width = 48;
+            Projectile.height = 48;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 480;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            projectile.velocity *= projectile.ai[0];
-            projectile.velocity.Y -= projectile.ai[1];
+            Projectile.velocity *= Projectile.ai[0];
+            Projectile.velocity.Y -= Projectile.ai[1];
 
-            projectile.rotation += projectile.velocity.X * 0.1f;
+            Projectile.rotation += Projectile.velocity.X * 0.1f;
         }
 
         public override void Kill(int timeLeft)
         {
-            Main.PlaySound(SoundID.NPCDeath3, projectile.Center);
+            SoundEngine.PlaySound(SoundID.NPCDeath3, Projectile.Center);
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
-            Rectangle frame = texture.Frame(1, 2, 0, projectile.frame);
-            SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+            Rectangle frame = texture.Frame(1, 2, 0, Projectile.frame);
+            SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-            spriteBatch.Draw(texture, projectile.Center - Main.screenPosition, frame, Color.White * 0.5f, projectile.rotation, new Vector2(24, 24), projectile.scale, effects, 0f);
+            Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition, frame, Color.White * 0.5f, Projectile.rotation, new Vector2(24, 24), Projectile.scale, effects, 0f);
 
             return false;
         }
@@ -3997,67 +4031,68 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class MothProjectile : ModProjectile
     {
-        public override string Texture => "Terraria/NPC_205";
+        public override string Texture => "Terraria/Images/NPC_205";
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Moth");
-            Main.projFrames[projectile.type] = 3;
+            // DisplayName.SetDefault("Moth");
+            Main.projFrames[Projectile.type] = 3;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 40;
-            projectile.height = 40;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 400;
+            Projectile.width = 40;
+            Projectile.height = 40;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 400;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            projectile.rotation = projectile.velocity.ToRotation() + MathHelper.Pi;
-            projectile.direction = projectile.velocity.X > 0 ? -1 : 1;
-            projectile.spriteDirection = projectile.direction;
+            Projectile.rotation = Projectile.velocity.ToRotation() + MathHelper.Pi;
+            Projectile.direction = Projectile.velocity.X > 0 ? -1 : 1;
+            Projectile.spriteDirection = Projectile.direction;
 
             //frame stuff
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 5)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 5)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 3)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 3)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
-            Rectangle frame = texture.Frame(1, 3, 0, projectile.frame);
-            SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+            Rectangle frame = texture.Frame(1, 3, 0, Projectile.frame);
+            SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
             Vector2 drawOffset = new Vector2(0, -14);
 
-            spriteBatch.Draw(texture, projectile.Center + drawOffset - Main.screenPosition, frame, Color.White, projectile.rotation, frame.Size() / 2, projectile.scale, effects, 0f);
+            Main.EntitySpriteDraw(texture, Projectile.Center + drawOffset - Main.screenPosition, frame, Color.White, Projectile.rotation, frame.Size() / 2, Projectile.scale, effects, 0f);
 
-            spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossScytheTelegraph"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.DarkOliveGreen * 0.25f, projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(projectile.velocity.Length(), projectile.width / 128f), SpriteEffects.None, 0f);
-            spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossTelegraphCap"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.DarkOliveGreen * 0.25f, (-projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(projectile.width / 128f, projectile.width / 128f), SpriteEffects.None, 0f);
+            Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossScytheTelegraph").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.DarkOliveGreen * 0.25f, Projectile.velocity.ToRotation(), new Vector2(0, 64), new Vector2(Projectile.velocity.Length(), Projectile.width / 128f), SpriteEffects.None, 0f);
+            Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossTelegraphCap").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), Color.DarkOliveGreen * 0.25f, (-Projectile.velocity).ToRotation(), new Vector2(0, 64), new Vector2(Projectile.width / 128f, Projectile.width / 128f), SpriteEffects.None, 0f);
 
             return false;
         }
@@ -4065,98 +4100,101 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class MothronProjectile : ModProjectile
     {
-        public override string Texture => "Terraria/NPC_477";
+        public override string Texture => "Terraria/Images/NPC_477";
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Mothron");
-            Main.projFrames[projectile.type] = 6;
+            // DisplayName.SetDefault("Mothron");
+            Main.projFrames[Projectile.type] = 6;
 
-            ProjectileID.Sets.TrailCacheLength[projectile.type] = 13;
-            ProjectileID.Sets.TrailingMode[projectile.type] = 2;
+            ProjectileID.Sets.TrailCacheLength[Projectile.type] = 13;
+            ProjectileID.Sets.TrailingMode[Projectile.type] = 2;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 64;
-            projectile.height = 64;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 400;
+            Projectile.width = 64;
+            Projectile.height = 64;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 400;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            if (projectile.timeLeft > 400 - 33)
+            if (Projectile.timeLeft > 400 - 33)
             {
-                projectile.velocity *= 0.95f;
+                Projectile.velocity *= 0.95f;
             }
             else
             {
-                projectile.velocity.Y += projectile.velocity.Y * projectile.velocity.Y / (projectile.Center.Y - projectile.ai[0]);
+                Projectile.velocity.Y += Projectile.velocity.Y * Projectile.velocity.Y / (Projectile.Center.Y - Projectile.ai[0]);
 
-                projectile.velocity = projectile.velocity.SafeNormalize(Vector2.Zero) * 6f;
+                Projectile.velocity = Projectile.velocity.SafeNormalize(Vector2.Zero) * 6f;
             }
-            projectile.rotation = projectile.velocity.ToRotation() + MathHelper.Pi;
-            projectile.direction = projectile.velocity.X > 0 ? -1 : 1;
-            projectile.spriteDirection = projectile.direction;
+            Projectile.rotation = Projectile.velocity.ToRotation() + MathHelper.Pi;
+            Projectile.direction = Projectile.velocity.X > 0 ? -1 : 1;
+            Projectile.spriteDirection = Projectile.direction;
 
             //test for death via ray of sunshine
-            projectile.ai[1] += 5 * projectile.direction;
-            if (projectile.ai[1] < projectile.Center.X ^ projectile.direction == 1)
+            Projectile.ai[1] += 5 * Projectile.direction;
+            if (Projectile.ai[1] < Projectile.Center.X ^ Projectile.direction == 1)
             {
-                projectile.Kill();
+                Projectile.Kill();
             }
 
             //frame stuff
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 3)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 3)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 6)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 6)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
         }
 
         public override void Kill(int timeLeft)
         {
-            Main.PlaySound(SoundID.NPCKilled, (int)projectile.Center.X, (int)projectile.Center.Y, 44, volumeScale: 0.5f);
-
-            Gore.NewGore(projectile.position, projectile.velocity, 687, projectile.scale);
-            Gore.NewGore(projectile.position, projectile.velocity, 688, projectile.scale);
-            Gore.NewGore(projectile.position, projectile.velocity, 689, projectile.scale);
-            Gore.NewGore(projectile.position, projectile.velocity, 690, projectile.scale);
-            Gore.NewGore(projectile.position, projectile.velocity, 691, projectile.scale);
-        }
-
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
-        {
-            drawCacheProjsBehindNPCs.Add(index);
-        }
-
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
-        {
-            Texture2D texture = Main.projectileTexture[projectile.type];
-            SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
-
-            for (int i = projectile.oldPos.Length - 1; i >= 0; i -= 3)
+            SoundEngine.PlaySound(SoundID.NPCDeath44.WithVolumeScale(0.5f), Projectile.Center);
+            if (Main.netMode != NetmodeID.Server)
             {
-                Rectangle frame = texture.Frame(1, 6, 0, ((projectile.frame * 3 + projectile.frameCounter + 6 - i) / 3) % 6);
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.position, Projectile.velocity, 687, Projectile.scale);
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.position, Projectile.velocity, 688, Projectile.scale);
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.position, Projectile.velocity, 689, Projectile.scale);
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.position, Projectile.velocity, 690, Projectile.scale);
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.position, Projectile.velocity, 691, Projectile.scale);
+            }
+        }
 
-                float alpha = (projectile.oldPos.Length - i) / (float)projectile.oldPos.Length;
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
+        {
+            behindNPCs.Add(index);
+        }
+
+        public override bool PreDraw(ref Color lightColor)
+        {
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
+            SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+
+            for (int i = Projectile.oldPos.Length - 1; i >= 0; i -= 3)
+            {
+                Rectangle frame = texture.Frame(1, 6, 0, ((Projectile.frame * 3 + Projectile.frameCounter + 6 - i) / 3) % 6);
+
+                float alpha = (Projectile.oldPos.Length - i) / (float)Projectile.oldPos.Length;
                 if (i != 0) alpha /= 2;
-                spriteBatch.Draw(texture, projectile.oldPos[i] + projectile.Center - projectile.position - Main.screenPosition, frame, Color.White * alpha, projectile.oldRot[i], frame.Size() / 2, projectile.scale, effects, 0f);
+                Main.EntitySpriteDraw(texture, Projectile.oldPos[i] + Projectile.Center - Projectile.position - Main.screenPosition, frame, Color.White * alpha, Projectile.oldRot[i], frame.Size() / 2, Projectile.scale, effects, 0f);
             }
 
             return false;
@@ -4165,77 +4203,78 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class CataBossMine : ModProjectile
     {
-        public override string Texture => "Terraria/NPC_" + NPCID.AncientDoom;
+        public override string Texture => "Terraria/Images/NPC_" + NPCID.AncientDoom;
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Celestial Doom");
+            // DisplayName.SetDefault("Celestial Doom");
 
-            Main.projFrames[projectile.type] = 5;
+            Main.projFrames[Projectile.type] = 5;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         private int sigilCount
         {
             get
             {
-                return projectile.ai[1] == 0 ? 1 : (int)projectile.ai[1] * 4;
+                return Projectile.ai[1] == 0 ? 1 : (int)Projectile.ai[1] * 4;
             }
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 48;
-            projectile.height = 48;
-            projectile.alpha = 0;
-            projectile.light = 0.5f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 480;
+            Projectile.width = 48;
+            Projectile.height = 48;
+            Projectile.alpha = 0;
+            Projectile.light = 0.5f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 480;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
             float mineTime = 90f;
 
-            if ((480 - projectile.timeLeft) < mineTime)
+            if ((480 - Projectile.timeLeft) < mineTime)
             {
-                projectile.hostile = false;
+                Projectile.hostile = false;
 
-                projectile.ai[0] += 3.125f * projectile.ai[1] * (mineTime - (480 - projectile.timeLeft)) / mineTime;
+                Projectile.ai[0] += 3.125f * Projectile.ai[1] * (mineTime - (480 - Projectile.timeLeft)) / mineTime;
 
-                projectile.alpha = (int)(256 - 128 * ((480 - projectile.timeLeft) / mineTime));
+                Projectile.alpha = (int)(256 - 128 * ((480 - Projectile.timeLeft) / mineTime));
             }
             else
             {
-                projectile.hostile = true;
-                projectile.alpha = 0;
+                Projectile.hostile = true;
+                Projectile.alpha = 0;
             }
 
-            projectile.rotation = projectile.ai[1];
+            Projectile.rotation = Projectile.ai[1];
 
-            if (projectile.timeLeft < 30)
+            if (Projectile.timeLeft < 30)
             {
-                Vector2 oldCenter = projectile.Center;
-                projectile.width += 4;
-                projectile.height += 4;
-                projectile.Center = oldCenter;
+                Vector2 oldCenter = Projectile.Center;
+                Projectile.width += 4;
+                Projectile.height += 4;
+                Projectile.Center = oldCenter;
             }
 
             //frame stuff
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 4)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 4)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 5)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 5)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
         }
@@ -4244,10 +4283,10 @@ namespace DeathsTerminus.NPCs.CataBoss
         {
             for (int i = 0; i < sigilCount; i++)
             {
-                Vector2 circleCenter = projectile.Center + new Vector2(projectile.ai[0] * projectile.scale, 0).RotatedBy(projectile.rotation + i * MathHelper.TwoPi / sigilCount);
+                Vector2 circleCenter = Projectile.Center + new Vector2(Projectile.ai[0] * Projectile.scale, 0).RotatedBy(Projectile.rotation + i * MathHelper.TwoPi / sigilCount);
                 float nearestX = Math.Max(targetHitbox.X, Math.Min(circleCenter.X, targetHitbox.X + targetHitbox.Size().X));
                 float nearestY = Math.Max(targetHitbox.Y, Math.Min(circleCenter.Y, targetHitbox.Y + targetHitbox.Size().Y));
-                if (new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < projectile.width / 2)
+                if (new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < Projectile.width / 2)
                 {
                     return true;
                 }
@@ -4255,36 +4294,36 @@ namespace DeathsTerminus.NPCs.CataBoss
             return false;
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
             for (int i = 0; i < sigilCount; i++)
             {
-                Vector2 drawPosition = projectile.Center - Main.screenPosition + new Vector2(projectile.ai[0] * projectile.scale, 0).RotatedBy(projectile.rotation + i * MathHelper.TwoPi / sigilCount);
+                Vector2 drawPosition = Projectile.Center - Main.screenPosition + new Vector2(Projectile.ai[0] * Projectile.scale, 0).RotatedBy(Projectile.rotation + i * MathHelper.TwoPi / sigilCount);
 
-                if (projectile.timeLeft >= 30)
+                if (Projectile.timeLeft >= 30)
                 {
-                    Texture2D texture = Main.projectileTexture[projectile.type];
+                    Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
-                    Rectangle frame = texture.Frame(1, 5, 0, projectile.frame);
-                    SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+                    Rectangle frame = texture.Frame(1, 5, 0, Projectile.frame);
+                    SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-                    spriteBatch.Draw(texture, drawPosition, frame, Color.White * (1 - projectile.alpha / 255f), 0f, frame.Size() / 2, projectile.scale, effects, 0f);
+                    Main.EntitySpriteDraw(texture, drawPosition, frame, Color.White * (1 - Projectile.alpha / 255f), 0f, frame.Size() / 2, Projectile.scale, effects, 0f);
                 }
                 else
                 {
-                    Texture2D texture = mod.GetTexture("NPCs/CataBoss/CelestialDoom");
+                    Texture2D texture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CelestialDoom").Value;
 
-                    Rectangle frame = texture.Frame(1, 5, 0, projectile.frame);
-                    SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+                    Rectangle frame = texture.Frame(1, 5, 0, Projectile.frame);
+                    SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-                    spriteBatch.Draw(texture, drawPosition, frame, Color.White * (1 - projectile.alpha / 255f) * (1 - projectile.width / 168f), 0f, frame.Size() / 2, projectile.width / 48f, effects, 0f);
+                    Main.EntitySpriteDraw(texture, drawPosition, frame, Color.White * (1 - Projectile.alpha / 255f) * (1 - Projectile.width / 168f), 0f, frame.Size() / 2, Projectile.width / 48f, effects, 0f);
 
-                    spriteBatch.Draw(texture, drawPosition, frame, Color.White * (1 - projectile.alpha / 255f) * (projectile.timeLeft / 30f), 0f, frame.Size() / 2, projectile.scale, effects, 0f);
+                    Main.EntitySpriteDraw(texture, drawPosition, frame, Color.White * (1 - Projectile.alpha / 255f) * (Projectile.timeLeft / 30f), 0f, frame.Size() / 2, Projectile.scale, effects, 0f);
                 }
             }
             return false;
@@ -4293,77 +4332,78 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class CataBossMine2 : ModProjectile
     {
-        public override string Texture => "Terraria/NPC_" + NPCID.AncientDoom;
+        public override string Texture => "Terraria/Images/NPC_" + NPCID.AncientDoom;
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Celestial Doom");
+            // DisplayName.SetDefault("Celestial Doom");
 
-            Main.projFrames[projectile.type] = 5;
+            Main.projFrames[Projectile.type] = 5;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         private int sigilCount
         {
             get
             {
-                return projectile.ai[1] == 0 ? 1 : (int)projectile.ai[1] * 6;
+                return Projectile.ai[1] == 0 ? 1 : (int)Projectile.ai[1] * 6;
             }
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 48;
-            projectile.height = 48;
-            projectile.alpha = 0;
-            projectile.light = 0.5f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 600;
+            Projectile.width = 48;
+            Projectile.height = 48;
+            Projectile.alpha = 0;
+            Projectile.light = 0.5f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 600;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
             float mineTime = 90f;
 
-            if ((600 - projectile.timeLeft) < mineTime)
+            if ((600 - Projectile.timeLeft) < mineTime)
             {
-                projectile.hostile = false;
+                Projectile.hostile = false;
 
-                projectile.ai[0] += 3.75f * projectile.ai[1] * (mineTime - (600 - projectile.timeLeft)) / mineTime;
+                Projectile.ai[0] += 3.75f * Projectile.ai[1] * (mineTime - (600 - Projectile.timeLeft)) / mineTime;
 
-                projectile.alpha = (int)(256 - 128 * ((600 - projectile.timeLeft) / mineTime));
+                Projectile.alpha = (int)(256 - 128 * ((600 - Projectile.timeLeft) / mineTime));
             }
             else
             {
-                projectile.hostile = true;
-                projectile.alpha = 0;
+                Projectile.hostile = true;
+                Projectile.alpha = 0;
             }
 
-            projectile.rotation = projectile.ai[1] * 4f / 6f;
+            Projectile.rotation = Projectile.ai[1] * 4f / 6f;
 
-            if (projectile.timeLeft < 30)
+            if (Projectile.timeLeft < 30)
             {
-                Vector2 oldCenter = projectile.Center;
-                projectile.width += 4;
-                projectile.height += 4;
-                projectile.Center = oldCenter;
+                Vector2 oldCenter = Projectile.Center;
+                Projectile.width += 4;
+                Projectile.height += 4;
+                Projectile.Center = oldCenter;
             }
 
             //frame stuff
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 4)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 4)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 5)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 5)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
         }
@@ -4372,10 +4412,10 @@ namespace DeathsTerminus.NPCs.CataBoss
         {
             for (int i = 0; i < sigilCount; i++)
             {
-                Vector2 circleCenter = projectile.Center + new Vector2(projectile.ai[0] * projectile.scale, 0).RotatedBy(projectile.rotation + i * MathHelper.TwoPi / sigilCount);
+                Vector2 circleCenter = Projectile.Center + new Vector2(Projectile.ai[0] * Projectile.scale, 0).RotatedBy(Projectile.rotation + i * MathHelper.TwoPi / sigilCount);
                 float nearestX = Math.Max(targetHitbox.X, Math.Min(circleCenter.X, targetHitbox.X + targetHitbox.Size().X));
                 float nearestY = Math.Max(targetHitbox.Y, Math.Min(circleCenter.Y, targetHitbox.Y + targetHitbox.Size().Y));
-                if (new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < projectile.width / 2)
+                if (new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < Projectile.width / 2)
                 {
                     return true;
                 }
@@ -4383,36 +4423,36 @@ namespace DeathsTerminus.NPCs.CataBoss
             return false;
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
             for (int i = 0; i < sigilCount; i++)
             {
-                Vector2 drawPosition = projectile.Center - Main.screenPosition + new Vector2(projectile.ai[0] * projectile.scale, 0).RotatedBy(projectile.rotation + i * MathHelper.TwoPi / sigilCount);
+                Vector2 drawPosition = Projectile.Center - Main.screenPosition + new Vector2(Projectile.ai[0] * Projectile.scale, 0).RotatedBy(Projectile.rotation + i * MathHelper.TwoPi / sigilCount);
 
-                if (projectile.timeLeft >= 30)
+                if (Projectile.timeLeft >= 30)
                 {
-                    Texture2D texture = Main.projectileTexture[projectile.type];
+                    Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
-                    Rectangle frame = texture.Frame(1, 5, 0, projectile.frame);
-                    SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+                    Rectangle frame = texture.Frame(1, 5, 0, Projectile.frame);
+                    SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-                    spriteBatch.Draw(texture, drawPosition, frame, Color.White * (1 - projectile.alpha / 255f), 0f, frame.Size() / 2, projectile.scale, effects, 0f);
+                    Main.EntitySpriteDraw(texture, drawPosition, frame, Color.White * (1 - Projectile.alpha / 255f), 0f, frame.Size() / 2, Projectile.scale, effects, 0f);
                 }
                 else
                 {
-                    Texture2D texture = mod.GetTexture("NPCs/CataBoss/CelestialDoom");
+                    Texture2D texture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CelestialDoom").Value;
 
-                    Rectangle frame = texture.Frame(1, 5, 0, projectile.frame);
-                    SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+                    Rectangle frame = texture.Frame(1, 5, 0, Projectile.frame);
+                    SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-                    spriteBatch.Draw(texture, drawPosition, frame, Color.White * (1 - projectile.alpha / 255f) * (1 - projectile.width / 168f), 0f, frame.Size() / 2, projectile.width / 48f, effects, 0f);
+                    Main.EntitySpriteDraw(texture, drawPosition, frame, Color.White * (1 - Projectile.alpha / 255f) * (1 - Projectile.width / 168f), 0f, frame.Size() / 2, Projectile.width / 48f, effects, 0f);
 
-                    spriteBatch.Draw(texture, drawPosition, frame, Color.White * (1 - projectile.alpha / 255f) * (projectile.timeLeft / 30f), 0f, frame.Size() / 2, projectile.scale, effects, 0f);
+                    Main.EntitySpriteDraw(texture, drawPosition, frame, Color.White * (1 - Projectile.alpha / 255f) * (Projectile.timeLeft / 30f), 0f, frame.Size() / 2, Projectile.scale, effects, 0f);
                 }
             }
             return false;
@@ -4421,83 +4461,84 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class CataBusterSword : ModProjectile
     {
-        public override string Texture => "Terraria/Item_426";
+        public override string Texture => "Terraria/Images/Item_426";
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Buster Sword");
-            Main.projFrames[projectile.type] = 1;
+            // DisplayName.SetDefault("Buster Sword");
+            Main.projFrames[Projectile.type] = 1;
 
-            ProjectileID.Sets.TrailCacheLength[projectile.type] = 5;
-            ProjectileID.Sets.TrailingMode[projectile.type] = 2;
+            ProjectileID.Sets.TrailCacheLength[Projectile.type] = 5;
+            ProjectileID.Sets.TrailingMode[Projectile.type] = 2;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 140;
-            projectile.height = 140;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 2f;
-            projectile.timeLeft = 400;
+            Projectile.width = 140;
+            Projectile.height = 140;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 2f;
+            Projectile.timeLeft = 400;
         }
 
         public override void AI()
         {
-            if (projectile.localAI[0] == 0)
+            if (Projectile.localAI[0] == 0)
             {
-                projectile.localAI[0] = 1;
+                Projectile.localAI[0] = 1;
 
-                projectile.direction = Main.npc[(int)projectile.ai[0]].spriteDirection;
-                projectile.spriteDirection = projectile.direction;
+                Projectile.direction = Main.npc[(int)Projectile.ai[0]].spriteDirection;
+                Projectile.spriteDirection = Projectile.direction;
 
-                projectile.rotation = projectile.AngleTo(Main.player[Main.npc[(int)projectile.ai[0]].target].Center) - 3 * MathHelper.PiOver4;
+                Projectile.rotation = Projectile.AngleTo(Main.player[Main.npc[(int)Projectile.ai[0]].target].Center) - 3 * MathHelper.PiOver4;
 
-                if (projectile.ai[1] == 2f)
+                if (Projectile.ai[1] == 2f)
                 {
-                    projectile.timeLeft = 600;
+                    Projectile.timeLeft = 600;
                 }
 
-                projectile.localAI[1] = projectile.timeLeft;
+                Projectile.localAI[1] = Projectile.timeLeft;
             }
 
-            if (projectile.spriteDirection != Main.npc[(int)projectile.ai[0]].spriteDirection)
+            if (Projectile.spriteDirection != Main.npc[(int)Projectile.ai[0]].spriteDirection)
             {
-                projectile.rotation = 3 * MathHelper.PiOver2 - projectile.rotation;
+                Projectile.rotation = 3 * MathHelper.PiOver2 - Projectile.rotation;
             }
 
-            projectile.direction = Main.npc[(int)projectile.ai[0]].spriteDirection;
-            projectile.spriteDirection = projectile.direction;
+            Projectile.direction = Main.npc[(int)Projectile.ai[0]].spriteDirection;
+            Projectile.spriteDirection = Projectile.direction;
 
-            projectile.rotation += (float)Math.Sin(projectile.timeLeft / projectile.localAI[1] * MathHelper.Pi) * 50f * MathHelper.Pi / projectile.localAI[1] / 2f * projectile.direction * projectile.ai[1];
-            projectile.Center = Main.npc[(int)projectile.ai[0]].Center;
+            Projectile.rotation += (float)Math.Sin(Projectile.timeLeft / Projectile.localAI[1] * MathHelper.Pi) * 50f * MathHelper.Pi / Projectile.localAI[1] / 2f * Projectile.direction * Projectile.ai[1];
+            Projectile.Center = Main.npc[(int)Projectile.ai[0]].Center;
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
             float point = 0f;
-            return Collision.CheckAABBvLineCollision(targetHitbox.TopLeft(), targetHitbox.Size(), projectile.Center, projectile.Center + new Vector2(140, -140).RotatedBy(projectile.rotation), 20 * projectile.scale, ref point);
+            return Collision.CheckAABBvLineCollision(targetHitbox.TopLeft(), targetHitbox.Size(), Projectile.Center, Projectile.Center + new Vector2(140, -140).RotatedBy(Projectile.rotation), 20 * Projectile.scale, ref point);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
             Rectangle frame = texture.Frame();
 
-            for (int i = projectile.oldPos.Length - 1; i >= 0; i--)
+            for (int i = Projectile.oldPos.Length - 1; i >= 0; i--)
             {
-                SpriteEffects effects = projectile.oldSpriteDirection[i] == 1 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
-                Vector2 center = projectile.oldSpriteDirection[i] == 1 ? new Vector2(0, 80) : new Vector2(70, 80);
-                float rotationOffset = projectile.oldSpriteDirection[i] == 1 ? 0 : MathHelper.PiOver2;
-                float alpha = (projectile.oldPos.Length - i) / (float)projectile.oldPos.Length;
+                SpriteEffects effects = Projectile.oldSpriteDirection[i] == 1 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
+                Vector2 center = Projectile.oldSpriteDirection[i] == 1 ? new Vector2(0, 80) : new Vector2(70, 80);
+                float rotationOffset = Projectile.oldSpriteDirection[i] == 1 ? 0 : MathHelper.PiOver2;
+                float alpha = (Projectile.oldPos.Length - i) / (float)Projectile.oldPos.Length;
 
-                spriteBatch.Draw(texture, projectile.oldPos[i] + projectile.Center - projectile.position - Main.screenPosition, frame, Color.White * alpha, projectile.oldRot[i] + rotationOffset, center, projectile.scale, effects, 0f);
+                Main.EntitySpriteDraw(texture, Projectile.oldPos[i] + Projectile.Center - Projectile.position - Main.screenPosition, frame, Color.White * alpha, Projectile.oldRot[i] + rotationOffset, center, Projectile.scale, effects, 0f);
             }
 
             return false;
@@ -4506,53 +4547,54 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class CataBossFireballRing : ModProjectile
     {
-        public override string Texture => "Terraria/Projectile_" + ProjectileID.CultistBossFireBall;
+        public override string Texture => "Terraria/Images/Projectile_" + ProjectileID.CultistBossFireBall;
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Celestial Flame");
+            // DisplayName.SetDefault("Celestial Flame");
 
-            Main.projFrames[projectile.type] = 4;
+            Main.projFrames[Projectile.type] = 4;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         int numFireballs = 32;
 
         public override void SetDefaults()
         {
-            projectile.width = 38;
-            projectile.height = 38;
-            projectile.alpha = 0;
-            projectile.light = 0.5f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 90;
+            Projectile.width = 38;
+            Projectile.height = 38;
+            Projectile.alpha = 0;
+            Projectile.light = 0.5f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 90;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            projectile.rotation += projectile.ai[1] * 0.02f;
-            projectile.ai[0] -= 20f / 3f;
+            Projectile.rotation += Projectile.ai[1] * 0.02f;
+            Projectile.ai[0] -= 20f / 3f;
 
-            if (projectile.timeLeft <= 30)
+            if (Projectile.timeLeft <= 30)
             {
-                projectile.alpha += 8;
+                Projectile.alpha += 8;
             }
 
             //frame stuff
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 4)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 4)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 4)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 4)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
         }
@@ -4561,10 +4603,10 @@ namespace DeathsTerminus.NPCs.CataBoss
         {
             for (int i = 0; i < numFireballs; i++)
             {
-                Vector2 circleCenter = projectile.Center + new Vector2(projectile.ai[0] * projectile.scale, 0).RotatedBy(projectile.rotation + i * MathHelper.TwoPi / numFireballs);
+                Vector2 circleCenter = Projectile.Center + new Vector2(Projectile.ai[0] * Projectile.scale, 0).RotatedBy(Projectile.rotation + i * MathHelper.TwoPi / numFireballs);
                 float nearestX = Math.Max(targetHitbox.X, Math.Min(circleCenter.X, targetHitbox.X + targetHitbox.Size().X));
                 float nearestY = Math.Max(targetHitbox.Y, Math.Min(circleCenter.Y, targetHitbox.Y + targetHitbox.Size().Y));
-                if (new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < projectile.width / 2)
+                if (new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < Projectile.width / 2)
                 {
                     return true;
                 }
@@ -4572,12 +4614,12 @@ namespace DeathsTerminus.NPCs.CataBoss
             return false;
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
             float trailLength = 10f;
 
@@ -4585,18 +4627,18 @@ namespace DeathsTerminus.NPCs.CataBoss
             {
                 for (int j = 0; j < trailLength; j++)
                 {
-                    float oldAI0 = projectile.ai[0] + (20f / 3f) * j;
-                    float oldRotation = projectile.rotation - projectile.ai[1] * 0.02f * j;
+                    float oldAI0 = Projectile.ai[0] + (20f / 3f) * j;
+                    float oldRotation = Projectile.rotation - Projectile.ai[1] * 0.02f * j;
                     float alpha = 1 - j / trailLength;
 
-                    Vector2 drawPosition = projectile.Center - Main.screenPosition + new Vector2(oldAI0 * projectile.scale, 0).RotatedBy(oldRotation + i * MathHelper.TwoPi / numFireballs);
+                    Vector2 drawPosition = Projectile.Center - Main.screenPosition + new Vector2(oldAI0 * Projectile.scale, 0).RotatedBy(oldRotation + i * MathHelper.TwoPi / numFireballs);
 
-                    Texture2D texture = Main.projectileTexture[projectile.type];
+                    Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
-                    Rectangle frame = texture.Frame(1, 4, 0, projectile.frame);
-                    SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+                    Rectangle frame = texture.Frame(1, 4, 0, Projectile.frame);
+                    SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-                    spriteBatch.Draw(texture, drawPosition, frame, Color.White * (1 - projectile.alpha / 255f) * alpha, oldRotation, frame.Size() / 2, projectile.scale * alpha, effects, 0f);
+                    Main.EntitySpriteDraw(texture, drawPosition, frame, Color.White * (1 - Projectile.alpha / 255f) * alpha, oldRotation, frame.Size() / 2, Projectile.scale * alpha, effects, 0f);
                 }
             }
             return false;
@@ -4609,9 +4651,9 @@ namespace DeathsTerminus.NPCs.CataBoss
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Mega Sprocket");
-            Main.projFrames[projectile.type] = 7;
-
+            // DisplayName.SetDefault("Mega Sprocket");
+            Main.projFrames[Projectile.type] = 7;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
             /*Texture2D texture = new Texture2D(Main.spriteBatch.GraphicsDevice, 512, 512, false, SurfaceFormat.Color);
 			List<Color> list = new List<Color>();
 			for (int j = 0; j < texture.Height; j++)
@@ -4651,67 +4693,67 @@ namespace DeathsTerminus.NPCs.CataBoss
 
         public override void SetDefaults()
         {
-            projectile.width = 66;
-            projectile.height = 66;
-            projectile.alpha = 0;
-            projectile.light = 1f;
-            projectile.aiStyle = -1;
-            projectile.hostile = false;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = lifeTime;
+            Projectile.width = 66;
+            Projectile.height = 66;
+            Projectile.alpha = 0;
+            Projectile.light = 1f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = false;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = lifeTime;
         }
 
         public override void AI()
         {
-            if (projectile.localAI[0] == 0)
+            if (Projectile.localAI[0] == 0)
             {
-                projectile.scale = projectile.ai[1] + 1f;
+                Projectile.scale = Projectile.ai[1] + 1f;
             }
 
-            if (projectile.localAI[0] == 60)
+            if (Projectile.localAI[0] == 60)
             {
-                projectile.hostile = true;
+                Projectile.hostile = true;
             }
 
-            Vector2 oldCenter = projectile.Center;
-            projectile.width = (int)(projectile.scale * 66);
-            projectile.height = (int)(projectile.scale * 66);
-            projectile.Center = oldCenter;
+            Vector2 oldCenter = Projectile.Center;
+            Projectile.width = (int)(Projectile.scale * 66);
+            Projectile.height = (int)(Projectile.scale * 66);
+            Projectile.Center = oldCenter;
 
-            if (projectile.timeLeft == lifeTime)
+            if (Projectile.timeLeft == lifeTime)
             {
                 for (int i = 0; i < 6; i++)
                 {
-                    if (Main.netMode != 1)
-                        Projectile.NewProjectile(projectile.Center, new Vector2(1, 0).RotatedBy(i * MathHelper.TwoPi / 6f), ModContent.ProjectileType<MegaSprocketPrism>(), 80, 0f, Main.myPlayer, ai0: i, ai1: projectile.whoAmI);
+                    if (Main.netMode != NetmodeID.MultiplayerClient)
+                        Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, new Vector2(1, 0).RotatedBy(i * MathHelper.TwoPi / 6f), ModContent.ProjectileType<MegaSprocketPrism>(), 80, 0f, Main.myPlayer, ai0: i, ai1: Projectile.whoAmI);
                 }
             }
 
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 3)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 3)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 7)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 7)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
 
-            if (projectile.timeLeft > 300)
+            if (Projectile.timeLeft > 300)
             {
-                projectile.velocity *= (1 - 1 / 60f);
+                Projectile.velocity *= (1 - 1 / 60f);
 
                 shieldAlpha = (shieldAlpha + 1 / 240f) / (1 + 1 / 240f);
             }
-            else if (projectile.timeLeft > 150)
+            else if (Projectile.timeLeft > 150)
             {
-                projectile.velocity *= (1 - 1/60f);
+                Projectile.velocity *= (1 - 1 / 60f);
 
-                projectile.hostile = false;
+                Projectile.hostile = false;
 
                 if (shieldAlpha > 0)
                 {
@@ -4724,58 +4766,58 @@ namespace DeathsTerminus.NPCs.CataBoss
             }
             else
             {
-                NPC boss = Main.npc[(int)projectile.ai[0]];
+                NPC boss = Main.npc[(int)Projectile.ai[0]];
 
-                projectile.velocity += (boss.Center + boss.velocity * projectile.timeLeft - projectile.Center - projectile.velocity * projectile.timeLeft) / (projectile.timeLeft * projectile.timeLeft);
-                projectile.scale -= 2 / 150f;
+                Projectile.velocity += (boss.Center + boss.velocity * Projectile.timeLeft - Projectile.Center - Projectile.velocity * Projectile.timeLeft) / (Projectile.timeLeft * Projectile.timeLeft);
+                Projectile.scale -= 2 / 150f;
             }
 
-            projectile.localAI[0]++;
-            cogRotation += projectile.localAI[0] / 50000f + projectile.localAI[0] * projectile.localAI[0] / 100000000f;
+            Projectile.localAI[0]++;
+            cogRotation += Projectile.localAI[0] / 50000f + Projectile.localAI[0] * Projectile.localAI[0] / 100000000f;
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
-            Vector2 circleCenter = projectile.Center;
+            Vector2 circleCenter = Projectile.Center;
             float nearestX = Math.Max(targetHitbox.X, Math.Min(circleCenter.X, targetHitbox.X + targetHitbox.Size().X));
             float nearestY = Math.Max(targetHitbox.Y, Math.Min(circleCenter.Y, targetHitbox.Y + targetHitbox.Size().Y));
-            return new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < projectile.width / 2;
+            return new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < Projectile.width / 2;
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
             Rectangle frame;
             SpriteEffects effects;
 
             //draw the pet
-            Texture2D texture = Main.projectileTexture[projectile.type];
-            if (projectile.localAI[1] == 0)
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
+            if (Projectile.localAI[1] == 0)
             {
-                texture = mod.GetTexture("NPCs/CataBoss/DarkPetProjectile");
+                texture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/DarkPetProjectile").Value;
             }
 
-            frame = texture.Frame(1, 7, 0, projectile.frame);
-            effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+            frame = texture.Frame(1, 7, 0, Projectile.frame);
+            effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-            float wingRotation = projectile.velocity.X * 0.1f;
+            float wingRotation = Projectile.velocity.X * 0.1f;
 
-            spriteBatch.Draw(texture, projectile.Center - Main.screenPosition, frame, Color.White, wingRotation, frame.Size() / 2, projectile.scale, effects, 0f);
+            Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition, frame, Color.White, wingRotation, frame.Size() / 2, Projectile.scale, effects, 0f);
 
-            Texture2D texture2 = mod.GetTexture("NPCs/CataBoss/HeavenPetProjectile_Cog");
-            if (projectile.localAI[1] == 0)
+            Texture2D texture2 = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/HeavenPetProjectile_Cog").Value;
+            if (Projectile.localAI[1] == 0)
             {
-                texture2 = mod.GetTexture("NPCs/CataBoss/DarkPetProjectile_Cog");
+                texture2 = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/DarkPetProjectile_Cog").Value;
             }
 
             frame = texture2.Frame();
-            effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+            effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-            spriteBatch.Draw(texture2, projectile.Center - Main.screenPosition, frame, Color.White, cogRotation, frame.Size() / 2, projectile.scale, effects, 0f);
+            Main.EntitySpriteDraw(texture2, Projectile.Center - Main.screenPosition, frame, Color.White, cogRotation, frame.Size() / 2, Projectile.scale, effects, 0f);
 
-            Texture2D texture3 = mod.GetTexture("NPCs/CataBoss/MegaSprocketShield");
+            Texture2D texture3 = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/MegaSprocketShield").Value;
             frame = texture3.Frame();
 
-            spriteBatch.Draw(texture3, projectile.Center - Main.screenPosition, frame, Color.White * shieldAlpha, cogRotation / 2, frame.Size() / 2, projectile.scale / 6f, effects, 0f);
+            Main.EntitySpriteDraw(texture3, Projectile.Center - Main.screenPosition, frame, Color.White * shieldAlpha, cogRotation / 2, frame.Size() / 2, Projectile.scale / 6f, effects, 0f);
 
             return false;
         }
@@ -4783,114 +4825,115 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class MegaSprocketPrism : ModProjectile
     {
-        public override string Texture => "Terraria/Projectile_633";
+        public override string Texture => "Terraria/Images/Projectile_633";
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Last Prism");
-            Main.projFrames[projectile.type] = 5;
+            // DisplayName.SetDefault("Last Prism");
+            Main.projFrames[Projectile.type] = 5;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         private const int lifeTime = 1200;
         private bool firingPrism
         {
-            get { return projectile.timeLeft <= lifeTime - 120; }
+            get { return Projectile.timeLeft <= lifeTime - 120; }
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 18;
-            projectile.height = 18;
-            projectile.alpha = 0;
-            projectile.light = 1f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = lifeTime;
+            Projectile.width = 18;
+            Projectile.height = 18;
+            Projectile.alpha = 0;
+            Projectile.light = 1f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = lifeTime;
         }
 
         public override void AI()
         {
-            if (projectile.localAI[0] == 0)
+            if (Projectile.localAI[0] == 0)
             {
-                projectile.rotation = projectile.velocity.ToRotation();
+                Projectile.rotation = Projectile.velocity.ToRotation();
             }
 
-            Projectile owner = Main.projectile[(int)projectile.ai[1]];
+            Projectile owner = Main.projectile[(int)Projectile.ai[1]];
 
-            float radius = 48 + Math.Max(0, (projectile.localAI[0] - 120));
-            projectile.rotation += projectile.localAI[0] / 50000f + projectile.localAI[0] * projectile.localAI[0] / 100000000f;
+            float radius = 48 + Math.Max(0, (Projectile.localAI[0] - 120));
+            Projectile.rotation += Projectile.localAI[0] / 50000f + Projectile.localAI[0] * Projectile.localAI[0] / 100000000f;
 
-            projectile.velocity = owner.Center + new Vector2(radius, 0).RotatedBy(projectile.rotation) - projectile.Center;
+            Projectile.velocity = owner.Center + new Vector2(radius, 0).RotatedBy(Projectile.rotation) - Projectile.Center;
 
-            projectile.hostile = firingPrism;
+            Projectile.hostile = firingPrism;
 
-            projectile.localAI[0]++;
+            Projectile.localAI[0]++;
 
-            if (projectile.timeLeft == lifeTime - 120)
+            if (Projectile.timeLeft == lifeTime - 120)
             {
-                Main.PlaySound(SoundID.Item122, projectile.Center);
+                SoundEngine.PlaySound(SoundID.Item122, Projectile.Center);
             }
-            else if (projectile.timeLeft % 60 == 0 && projectile.timeLeft <= lifeTime - 120)
+            else if (Projectile.timeLeft % 60 == 0 && Projectile.timeLeft <= lifeTime - 120)
             {
-                Main.PlaySound(SoundID.Item15, projectile.Center);
+                SoundEngine.PlaySound(SoundID.Item15, Projectile.Center);
             }
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
             float point = 0f;
-            return Collision.CheckAABBvLineCollision(targetHitbox.TopLeft(), targetHitbox.Size(), projectile.Center + new Vector2(20, 0).RotatedBy(projectile.rotation), projectile.Center + new Vector2(4096, 0).RotatedBy(projectile.rotation), 44 * projectile.scale, ref point);
+            return Collision.CheckAABBvLineCollision(targetHitbox.TopLeft(), targetHitbox.Size(), Projectile.Center + new Vector2(20, 0).RotatedBy(Projectile.rotation), Projectile.Center + new Vector2(4096, 0).RotatedBy(Projectile.rotation), 44 * Projectile.scale, ref point);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
             Rectangle frame;
             SpriteEffects effects;
 
             //Prisms here are different, each one is a different individual color
-            Color value42 = Main.hslToRgb((projectile.ai[0] / 6f + projectile.localAI[0] / 360f) % 1, 1f, 0.5f);
+            Color value42 = Main.hslToRgb((Projectile.ai[0] / 6f + Projectile.localAI[0] / 360f) % 1, 1f, 0.5f);
             value42.A = 0;
 
             //draw connections to prisms
-            float radius = 48 + Math.Max(0, (projectile.localAI[0] - 120));
+            float radius = 48 + Math.Max(0, (Projectile.localAI[0] - 120));
             float alpha = 1 - radius / 1200f;
-            spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossScytheTelegraph"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), value42 * (alpha * 0.4f), projectile.rotation + MathHelper.Pi, new Vector2(0, 64), new Vector2(radius / 64f, projectile.width / 64f), SpriteEffects.None, 0f);
-            spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossTelegraphCap"), projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), value42 * (alpha * 0.4f), projectile.rotation, new Vector2(0, 64), new Vector2(projectile.width / 64f, projectile.width / 64f), SpriteEffects.None, 0f);
+            Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossScytheTelegraph").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), value42 * (alpha * 0.4f), Projectile.rotation + MathHelper.Pi, new Vector2(0, 64), new Vector2(radius / 64f, Projectile.width / 64f), SpriteEffects.None, 0f);
+            Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossTelegraphCap").Value, Projectile.Center - Main.screenPosition, new Rectangle(0, 0, 64, 128), value42 * (alpha * 0.4f), Projectile.rotation, new Vector2(0, 64), new Vector2(Projectile.width / 64f, Projectile.width / 64f), SpriteEffects.None, 0f);
 
             //draw prism telegraph glow/background glow
-            float scaleModifier = projectile.timeLeft <= lifeTime - 120 ? 5 : 1;
-            float alphaModifier = projectile.timeLeft <= lifeTime - 120 ? 0.5f : 0.2f;
-            spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossScytheTelegraph"), projectile.Center + new Vector2(8 * scaleModifier * projectile.scale, 0).RotatedBy(projectile.rotation) - Main.screenPosition, new Rectangle(0, 0, 64, 128), value42 * alphaModifier, projectile.rotation, new Vector2(0, 64), new Vector2((1200 - radius) / 64f, projectile.width / 128f * scaleModifier), SpriteEffects.None, 0f);
-            spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/CataBossTelegraphCap"), projectile.Center + new Vector2(8 * scaleModifier * projectile.scale, 0).RotatedBy(projectile.rotation) - Main.screenPosition, new Rectangle(0, 0, 64, 128), value42 * alphaModifier, projectile.rotation + MathHelper.Pi, new Vector2(0, 64), new Vector2(projectile.width / 128f * scaleModifier, projectile.width / 128f * scaleModifier), SpriteEffects.None, 0f);
+            float scaleModifier = Projectile.timeLeft <= lifeTime - 120 ? 5 : 1;
+            float alphaModifier = Projectile.timeLeft <= lifeTime - 120 ? 0.5f : 0.2f;
+            Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossScytheTelegraph").Value, Projectile.Center + new Vector2(8 * scaleModifier * Projectile.scale, 0).RotatedBy(Projectile.rotation) - Main.screenPosition, new Rectangle(0, 0, 64, 128), value42 * alphaModifier, Projectile.rotation, new Vector2(0, 64), new Vector2((1200 - radius) / 64f, Projectile.width / 128f * scaleModifier), SpriteEffects.None, 0f);
+            Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/CataBossTelegraphCap").Value, Projectile.Center + new Vector2(8 * scaleModifier * Projectile.scale, 0).RotatedBy(Projectile.rotation) - Main.screenPosition, new Rectangle(0, 0, 64, 128), value42 * alphaModifier, Projectile.rotation + MathHelper.Pi, new Vector2(0, 64), new Vector2(Projectile.width / 128f * scaleModifier, Projectile.width / 128f * scaleModifier), SpriteEffects.None, 0f);
 
             //draw the prism
             //adapted from last prism drawcode
-            Texture2D prismTexture = Main.projectileTexture[projectile.type];
-            frame = prismTexture.Frame(1, 5, 0, (projectile.timeLeft / (projectile.timeLeft <= 600 - 60 ? 1 : 3)) % 5);
+            Texture2D prismTexture = TextureAssets.Projectile[Projectile.type].Value;
+            frame = prismTexture.Frame(1, 5, 0, (Projectile.timeLeft / (Projectile.timeLeft <= 600 - 60 ? 1 : 3)) % 5);
             effects = SpriteEffects.None;
-            Vector2 drawPosition = projectile.Center - Main.screenPosition;
+            Vector2 drawPosition = Projectile.Center - Main.screenPosition;
 
-            spriteBatch.Draw(prismTexture, drawPosition, frame, Color.White, projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, projectile.scale, effects, 0f);
+            Main.EntitySpriteDraw(prismTexture, drawPosition, frame, Color.White, Projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, Projectile.scale, effects, 0f);
 
-            float scaleFactor2 = (float)Math.Cos(Math.PI * 2f * (projectile.timeLeft / 30f)) * 2f + 2f;
-            if (projectile.timeLeft <= lifeTime - 120)
+            float scaleFactor2 = (float)Math.Cos(Math.PI * 2f * (Projectile.timeLeft / 30f)) * 2f + 2f;
+            if (Projectile.timeLeft <= lifeTime - 120)
             {
                 scaleFactor2 = 4f;
             }
             for (float num350 = 0f; num350 < 4f; num350 += 1f)
             {
-                spriteBatch.Draw(prismTexture, drawPosition + new Vector2(0, 1).RotatedBy(num350 * (Math.PI * 2f) / 4f) * scaleFactor2, frame, Color.White.MultiplyRGBA(new Color(255, 255, 255, 0)) * 0.03f, projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, projectile.scale, effects, 0f);
+                Main.EntitySpriteDraw(prismTexture, drawPosition + new Vector2(0, 1).RotatedBy(num350 * (Math.PI * 2f) / 4f) * scaleFactor2, frame, Color.White.MultiplyRGBA(new Color(255, 255, 255, 0)) * 0.03f, Projectile.rotation + MathHelper.PiOver2, frame.Size() / 2, Projectile.scale, effects, 0f);
             }
 
-            if (projectile.timeLeft > lifeTime - 120)
+            if (Projectile.timeLeft > lifeTime - 120)
             {
                 //draw the telegraph line
-                float telegraphAlpha = (120 - lifeTime + projectile.timeLeft) / 30f * (lifeTime - 60 - projectile.timeLeft) / 30f;
-                spriteBatch.Draw(mod.GetTexture("NPCs/CataBoss/HeavenPetProjectileTelegraph"), projectile.Center + new Vector2(10 * projectile.scale, 0).RotatedBy(projectile.rotation) - Main.screenPosition, new Rectangle(0, 0, 1, 1), Color.White * telegraphAlpha, projectile.rotation, new Vector2(0, 0.5f), new Vector2(4096, 1), SpriteEffects.None, 0f);
+                float telegraphAlpha = (120 - lifeTime + Projectile.timeLeft) / 30f * (lifeTime - 60 - Projectile.timeLeft) / 30f;
+                Main.EntitySpriteDraw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/HeavenPetProjectileTelegraph").Value, Projectile.Center + new Vector2(10 * Projectile.scale, 0).RotatedBy(Projectile.rotation) - Main.screenPosition, new Rectangle(0, 0, 1, 1), Color.White * telegraphAlpha, Projectile.rotation, new Vector2(0, 0.5f), new Vector2(4096, 1), SpriteEffects.None, 0f);
             }
             if (firingPrism)
             {
@@ -4900,24 +4943,24 @@ namespace DeathsTerminus.NPCs.CataBoss
                 for (int i = 0; i < 6; i++)
                 {
                     //texture
-                    Texture2D tex7 = ModContent.GetTexture("Terraria/Projectile_632");
+                    Texture2D tex7 = TextureAssets.Projectile[632].Value;
                     //laser length
-                    float num528 = 1200 - (48 + Math.Max(0, (projectile.localAI[0] - 120)));
+                    float num528 = 1200 - (48 + Math.Max(0, (Projectile.localAI[0] - 120)));
 
-                    Vector2 drawOffset = new Vector2(4, 0).RotatedBy(projectile.timeLeft * 0.5f + i * MathHelper.TwoPi / 6);
+                    Vector2 drawOffset = new Vector2(4, 0).RotatedBy(Projectile.timeLeft * 0.5f + i * MathHelper.TwoPi / 6);
 
                     //start position
-                    Vector2 value45 = projectile.Center.Floor() + drawOffset + new Vector2(26 * projectile.scale, 0).RotatedBy(projectile.rotation);
+                    Vector2 value45 = Projectile.Center.Floor() + drawOffset + new Vector2(26 * Projectile.scale, 0).RotatedBy(Projectile.rotation);
 
-                    value45 += Vector2.UnitX.RotatedBy(projectile.rotation) * projectile.scale * 10.5f;
-                    num528 -= projectile.scale * 14.5f * projectile.scale;
-                    Vector2 vector90 = new Vector2(projectile.scale * 2);
+                    value45 += Vector2.UnitX.RotatedBy(Projectile.rotation) * Projectile.scale * 10.5f;
+                    num528 -= Projectile.scale * 14.5f * Projectile.scale;
+                    Vector2 vector90 = new Vector2(Projectile.scale * 2);
                     DelegateMethods.f_1 = 1f;
-                    DelegateMethods.c_1 = value42 * 0.75f * projectile.Opacity;
-                    _ = projectile.oldPos[0] + new Vector2((float)projectile.width, (float)projectile.height) / 2f + Vector2.UnitY * projectile.gfxOffY - Main.screenPosition;
-                    Utils.DrawLaser(spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(projectile.rotation) * num528 - Main.screenPosition, vector90, DelegateMethods.RainbowLaserDraw);
-                    DelegateMethods.c_1 = new Color(255, 255, 255, 127) * 0.75f * projectile.Opacity;
-                    Utils.DrawLaser(spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(projectile.rotation) * num528 - Main.screenPosition, vector90 / 2f, DelegateMethods.RainbowLaserDraw);
+                    DelegateMethods.c_1 = value42 * 0.75f * Projectile.Opacity;
+                    _ = Projectile.oldPos[0] + new Vector2((float)Projectile.width, (float)Projectile.height) / 2f + Vector2.UnitY * Projectile.gfxOffY - Main.screenPosition;
+                    Utils.DrawLaser(Main.spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(Projectile.rotation) * num528 - Main.screenPosition, vector90, DelegateMethods.RainbowLaserDraw);
+                    DelegateMethods.c_1 = new Color(255, 255, 255, 127) * 0.75f * Projectile.Opacity;
+                    Utils.DrawLaser(Main.spriteBatch, tex7, value45 - Main.screenPosition, value45 + Vector2.UnitX.RotatedBy(Projectile.rotation) * num528 - Main.screenPosition, vector90 / 2f, DelegateMethods.RainbowLaserDraw);
                 }
             }
 
@@ -4929,8 +4972,9 @@ namespace DeathsTerminus.NPCs.CataBoss
     {
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Mysterious Presence");
-            Main.projFrames[projectile.type] = 7;
+            // DisplayName.SetDefault("Mysterious Presence");
+            Main.projFrames[Projectile.type] = 7;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         private const int initTime = 60;
@@ -4941,67 +4985,67 @@ namespace DeathsTerminus.NPCs.CataBoss
 
         public override void SetDefaults()
         {
-            projectile.width = 2;
-            projectile.height = 2;
-            projectile.alpha = 255;
-            projectile.light = 1f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 2f;
-            projectile.timeLeft = initTime + lifeTime + fadeTime + departTime;
+            Projectile.width = 2;
+            Projectile.height = 2;
+            Projectile.alpha = 255;
+            Projectile.light = 1f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 2f;
+            Projectile.timeLeft = initTime + lifeTime + fadeTime + departTime;
         }
 
         public override void AI()
         {
-            if (projectile.timeLeft > lifeTime + fadeTime + departTime)
+            if (Projectile.timeLeft > lifeTime + fadeTime + departTime)
             {
-                projectile.scale -= 1f / initTime;
-                projectile.alpha = (int)(((projectile.timeLeft - lifeTime - fadeTime - departTime) / (float)initTime) * 255);
+                Projectile.scale -= 1f / initTime;
+                Projectile.alpha = (int)(((Projectile.timeLeft - lifeTime - fadeTime - departTime) / (float)initTime) * 255);
             }
-            else if (projectile.timeLeft > fadeTime + departTime)
+            else if (Projectile.timeLeft > fadeTime + departTime)
             {
-                projectile.scale = 1f;
+                Projectile.scale = 1f;
 
-                float x = (lifeTime - (projectile.timeLeft - fadeTime - departTime)) / (float)lifeTime;
+                float x = (lifeTime - (Projectile.timeLeft - fadeTime - departTime)) / (float)lifeTime;
                 float a = 1 / 8f; //starting increment
                 float b = 1 / 4f; //ending increment
                 float c = 1 / 1f; //amount by which it 'dips'
                 float increment = a + (b - a) * x - c * x * x * (1 - x) * (1 - x);
-                projectile.localAI[0] += increment;
+                Projectile.localAI[0] += increment;
 
-                if (projectile.localAI[0] >= 1 && Main.netMode != 1)
+                if (Projectile.localAI[0] >= 1 && Main.netMode != NetmodeID.MultiplayerClient)
                 {
-                    projectile.localAI[0] -= 1;
+                    Projectile.localAI[0] -= 1;
 
                     for (int i = 0; i < 6; i++)
                     {
-                        float shotExtraTime = projectile.localAI[0] / increment;
-                        float shotRotation = (lifeTime - (projectile.timeLeft - fadeTime - departTime) - shotExtraTime) * (lifeTime - (projectile.timeLeft - fadeTime - departTime) - shotExtraTime) / 52000f + i * MathHelper.TwoPi / 6f;
-                        Projectile.NewProjectile(projectile.Center + new Vector2(projectileRadius, 0).RotatedBy(shotRotation) + new Vector2(-4, 0).RotatedBy(shotRotation) * shotExtraTime, new Vector2(-4, 0).RotatedBy(shotRotation), ModContent.ProjectileType<Shadow>(), 80, 0f, Main.myPlayer);
+                        float shotExtraTime = Projectile.localAI[0] / increment;
+                        float shotRotation = (lifeTime - (Projectile.timeLeft - fadeTime - departTime) - shotExtraTime) * (lifeTime - (Projectile.timeLeft - fadeTime - departTime) - shotExtraTime) / 52000f + i * MathHelper.TwoPi / 6f;
+                        Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center + new Vector2(projectileRadius, 0).RotatedBy(shotRotation) + new Vector2(-4, 0).RotatedBy(shotRotation) * shotExtraTime, new Vector2(-4, 0).RotatedBy(shotRotation), ModContent.ProjectileType<Shadow>(), 80, 0f, Main.myPlayer);
                     }
                 }
             }
             else
             {
-                projectile.hostile = false;
+                Projectile.hostile = false;
             }
 
-            if (projectile.timeLeft - departTime < 450)
+            if (Projectile.timeLeft - departTime < 450)
             {
-                projectile.alpha = Math.Max(0, (int)(255 - ((projectile.timeLeft - departTime) / 450f) * 255));
+                Projectile.alpha = Math.Max(0, (int)(255 - ((Projectile.timeLeft - departTime) / 450f) * 255));
             }
 
-            if (projectile.timeLeft > departTime)
+            if (Projectile.timeLeft > departTime)
             {
-                projectile.rotation = projectile.DirectionTo(Main.player[(int)projectile.ai[0]].Center).ToRotation();
-                projectile.spriteDirection = projectile.DirectionTo(Main.player[(int)projectile.ai[0]].Center).X > 0 ? 1 : -1;
+                Projectile.rotation = Projectile.DirectionTo(Main.player[(int)Projectile.ai[0]].Center).ToRotation();
+                Projectile.spriteDirection = Projectile.DirectionTo(Main.player[(int)Projectile.ai[0]].Center).X > 0 ? 1 : -1;
             }
-            else if (projectile.timeLeft == departTime - 90 || projectile.timeLeft == departTime - 120)
+            else if (Projectile.timeLeft == departTime - 90 || Projectile.timeLeft == departTime - 120)
             {
-                projectile.spriteDirection *= -1;
+                Projectile.spriteDirection *= -1;
             }
         }
 
@@ -5012,27 +5056,27 @@ namespace DeathsTerminus.NPCs.CataBoss
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
-            Vector2 circleCenter = projectile.Center;
+            Vector2 circleCenter = Projectile.Center;
 
             float furthestX = targetHitbox.X + targetHitbox.Size().X / 2 - circleCenter.X > 0 ? targetHitbox.X + targetHitbox.Size().X : targetHitbox.X;
             float furthestY = targetHitbox.Y + targetHitbox.Size().Y / 2 - circleCenter.Y > 0 ? targetHitbox.Y + targetHitbox.Size().Y : targetHitbox.Y;
-            return new Vector2(circleCenter.X - furthestX, circleCenter.Y - furthestY).Length() > projectileRadius * projectile.scale;
+            return new Vector2(circleCenter.X - furthestX, circleCenter.Y - furthestY).Length() > projectileRadius * Projectile.scale;
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
             Texture2D texture;
             Rectangle frame;
             float numDraws;
             SpriteEffects effects = SpriteEffects.None;
 
-            float alphaModifier = 1 - projectile.alpha / 255f;
+            float alphaModifier = 1 - Projectile.alpha / 255f;
 
             if (alphaModifier > 0)
             {
                 //draw the baddy
                 //draw the baddy's particles
-                texture = mod.GetTexture("NPCs/CataBoss/ShadowParticle");
+                texture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/ShadowParticle").Value;
                 numDraws = 1600;
                 Rectangle[] frameList = new Rectangle[]
                 {
@@ -5044,33 +5088,33 @@ namespace DeathsTerminus.NPCs.CataBoss
                 {
                     frame = frameList[i % 3];
 
-                    float distanceInwards = (i * i + (i % 3 + 2) * (lifeTime - projectile.timeLeft)) % 60;
-                    float rotationOffset = (i * i) % numDraws + (i * i + (i % 3 + 2) * (lifeTime - projectile.timeLeft)) / 60;
+                    float distanceInwards = (i * i + (i % 3 + 2) * (lifeTime - Projectile.timeLeft)) % 60;
+                    float rotationOffset = (i * i) % numDraws + (i * i + (i % 3 + 2) * (lifeTime - Projectile.timeLeft)) / 60;
                     float alpha = (60 - distanceInwards) / 60;
-                    spriteBatch.Draw(texture, projectile.Center + new Vector2(projectileRadius * projectile.scale - distanceInwards, 0).RotatedBy(i * MathHelper.TwoPi / numDraws + rotationOffset) - Main.screenPosition, frame, Color.White * alpha * alphaModifier, 0f, frame.Size() / 2, projectile.scale, effects, 0f);
+                    Main.EntitySpriteDraw(texture, Projectile.Center + new Vector2(projectileRadius * Projectile.scale - distanceInwards, 0).RotatedBy(i * MathHelper.TwoPi / numDraws + rotationOffset) - Main.screenPosition, frame, Color.White * alpha * alphaModifier, 0f, frame.Size() / 2, Projectile.scale, effects, 0f);
                 }
-                texture = mod.GetTexture("NPCs/CataBoss/ShadowParticleBig");
+                texture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/ShadowParticleBig").Value;
                 frame = texture.Frame();
                 numDraws = 800;
                 for (int i = 0; i < numDraws; i++)
                 {
-                    float distanceInwards = (i * i + 2 * (lifeTime - projectile.timeLeft)) % 60 - texture.Width / 2;
-                    float rotationOffset = (i * i) % numDraws + (i * i + 2 * (lifeTime - projectile.timeLeft)) / 60;
+                    float distanceInwards = (i * i + 2 * (lifeTime - Projectile.timeLeft)) % 60 - texture.Width / 2;
+                    float rotationOffset = (i * i) % numDraws + (i * i + 2 * (lifeTime - Projectile.timeLeft)) / 60;
                     float alpha = (60 - distanceInwards) / 60;
-                    spriteBatch.Draw(texture, projectile.Center + new Vector2(projectileRadius * projectile.scale - distanceInwards, 0).RotatedBy(i * MathHelper.TwoPi / numDraws + rotationOffset) - Main.screenPosition, frame, Color.White * alpha * alphaModifier, 0f, frame.Size() / 2, projectile.scale, effects, 0f);
+                    Main.EntitySpriteDraw(texture, Projectile.Center + new Vector2(projectileRadius * Projectile.scale - distanceInwards, 0).RotatedBy(i * MathHelper.TwoPi / numDraws + rotationOffset) - Main.screenPosition, frame, Color.White * alpha * alphaModifier, 0f, frame.Size() / 2, Projectile.scale, effects, 0f);
                 }
 
                 //draw the baddy's body
-                texture = Main.projectileTexture[projectile.type];
+                texture = TextureAssets.Projectile[Projectile.type].Value;
                 frame = texture.Frame();
                 numDraws = 48;
 
                 for (int i = 0; i < numDraws; i++)
                 {
-                    spriteBatch.Draw(texture, projectile.Center + new Vector2(projectileRadius * projectile.scale, 0).RotatedBy(i * MathHelper.TwoPi / numDraws) - Main.screenPosition, frame, Color.White * alphaModifier, i * MathHelper.TwoPi / 48, new Vector2(0, 0.5f), projectile.scale * projectileRadius, effects, 0f);
+                    Main.EntitySpriteDraw(texture, Projectile.Center + new Vector2(projectileRadius * Projectile.scale, 0).RotatedBy(i * MathHelper.TwoPi / numDraws) - Main.screenPosition, frame, Color.White * alphaModifier, i * MathHelper.TwoPi / 48, new Vector2(0, 0.5f), Projectile.scale * projectileRadius, effects, 0f);
                 }
 
-                texture = mod.GetTexture("NPCs/CataBoss/FogParticle");
+                texture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/FogParticle").Value;
                 numDraws = 1600;
                 frameList = new Rectangle[]
                 {
@@ -5085,15 +5129,15 @@ namespace DeathsTerminus.NPCs.CataBoss
                 {
                     frame = frameList[i % 6];
 
-                    float timeAlive = (i * i + (lifeTime - projectile.timeLeft)) % 60;
-                    float rotationOffset = (i * i) % numDraws + (i * i + (lifeTime - projectile.timeLeft)) / 60;
+                    float timeAlive = (i * i + (lifeTime - Projectile.timeLeft)) % 60;
+                    float rotationOffset = (i * i) % numDraws + (i * i + (lifeTime - Projectile.timeLeft)) / 60;
                     float distanceOutwards = 40 + (i * i) % numDraws;
                     float alpha = timeAlive * (60 - timeAlive) / 900f;
 
-                    spriteBatch.Draw(texture, projectile.Center + new Vector2(projectileRadius * projectile.scale + distanceOutwards, 0).RotatedBy(i * MathHelper.TwoPi / numDraws + rotationOffset) - Main.screenPosition, frame, Color.White * alpha * alphaModifier, 0f, frame.Size() / 2, projectile.scale, effects, 0f);
+                    Main.EntitySpriteDraw(texture, Projectile.Center + new Vector2(projectileRadius * Projectile.scale + distanceOutwards, 0).RotatedBy(i * MathHelper.TwoPi / numDraws + rotationOffset) - Main.screenPosition, frame, Color.White * alpha * alphaModifier, 0f, frame.Size() / 2, Projectile.scale, effects, 0f);
                 }
 
-                texture = mod.GetTexture("NPCs/CataBoss/LightningParticle");
+                texture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/LightningParticle").Value;
                 numDraws = 400;
                 frameList = new Rectangle[]
                 {
@@ -5108,30 +5152,30 @@ namespace DeathsTerminus.NPCs.CataBoss
                 {
                     frame = frameList[i % 6];
 
-                    float timeAlive = (i * i + (lifeTime - projectile.timeLeft)) % 60;
-                    float rotationOffset = MathHelper.Pi + (i * i) % numDraws + (i * i + (lifeTime - projectile.timeLeft)) / 60;
+                    float timeAlive = (i * i + (lifeTime - Projectile.timeLeft)) % 60;
+                    float rotationOffset = MathHelper.Pi + (i * i) % numDraws + (i * i + (lifeTime - Projectile.timeLeft)) / 60;
                     float distanceOutwards = 40 + (i * i) % numDraws * 3;
                     float alpha = (60 - timeAlive) / 60f;
 
-                    spriteBatch.Draw(texture, projectile.Center + new Vector2(projectileRadius * projectile.scale + distanceOutwards, 0).RotatedBy(i * MathHelper.TwoPi / numDraws + rotationOffset) - Main.screenPosition, frame, Color.White * alpha * alphaModifier, 0f, frame.Size() / 2, projectile.scale, effects, 0f);
+                    Main.EntitySpriteDraw(texture, Projectile.Center + new Vector2(projectileRadius * Projectile.scale + distanceOutwards, 0).RotatedBy(i * MathHelper.TwoPi / numDraws + rotationOffset) - Main.screenPosition, frame, Color.White * alpha * alphaModifier, 0f, frame.Size() / 2, Projectile.scale, effects, 0f);
                 }
             }
 
             //draw the baddy's eyes
-            texture = mod.GetTexture("NPCs/CataBoss/BaddyPet_Eyes");
-            frame = texture.Frame(1, 2, 0, projectile.timeLeft > departTime ? 0 : 1);
-            effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
-            Vector2 drawEyesOffset = projectile.timeLeft > departTime ? Vector2.Zero : new Vector2(0, - (float)Math.Exp((departTime - projectile.timeLeft) / 10f - 15));
+            texture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/BaddyPet_Eyes").Value;
+            frame = texture.Frame(1, 2, 0, Projectile.timeLeft > departTime ? 0 : 1);
+            effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
+            Vector2 drawEyesOffset = Projectile.timeLeft > departTime ? Vector2.Zero : new Vector2(0, -(float)Math.Exp((departTime - Projectile.timeLeft) / 10f - 15));
 
-            spriteBatch.Draw(texture, projectile.Center + new Vector2(projectileRadius * projectile.scale + 240, 0).RotatedBy(projectile.rotation) - Main.screenPosition + drawEyesOffset, frame, Color.White, 0f, frame.Size() / 2, 4f, effects, 0f);
+            Main.EntitySpriteDraw(texture, Projectile.Center + new Vector2(projectileRadius * Projectile.scale + 240, 0).RotatedBy(Projectile.rotation) - Main.screenPosition + drawEyesOffset, frame, Color.White, 0f, frame.Size() / 2, 4f, effects, 0f);
 
-            if (projectile.timeLeft > fadeTime + departTime)
+            if (Projectile.timeLeft > fadeTime + departTime)
             {
                 for (int i = 0; i < 6; i++)
                 {
-                    float rotation = ((lifeTime - (projectile.timeLeft - fadeTime - departTime)) * (lifeTime - (projectile.timeLeft - fadeTime - departTime)) / 50000f + i * MathHelper.TwoPi / 6f) % MathHelper.TwoPi;
+                    float rotation = ((lifeTime - (Projectile.timeLeft - fadeTime - departTime)) * (lifeTime - (Projectile.timeLeft - fadeTime - departTime)) / 50000f + i * MathHelper.TwoPi / 6f) % MathHelper.TwoPi;
                     effects = rotation < MathHelper.Pi ? SpriteEffects.None : SpriteEffects.FlipHorizontally;
-                    spriteBatch.Draw(texture, projectile.Center + new Vector2(projectileRadius * projectile.scale + 120, 0).RotatedBy(rotation) - Main.screenPosition, frame, Color.White * alphaModifier, 0f, frame.Size() / 2, 2f, effects, 0f);
+                    Main.EntitySpriteDraw(texture, Projectile.Center + new Vector2(projectileRadius * Projectile.scale + 120, 0).RotatedBy(rotation) - Main.screenPosition, frame, Color.White * alphaModifier, 0f, frame.Size() / 2, 2f, effects, 0f);
                 }
             }
 
@@ -5143,60 +5187,61 @@ namespace DeathsTerminus.NPCs.CataBoss
     {
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Shadow");
-            Main.projFrames[projectile.type] = 1;
+            // DisplayName.SetDefault("Shadow");
+            Main.projFrames[Projectile.type] = 1;
 
-            ProjectileID.Sets.TrailCacheLength[projectile.type] = 6;
-            ProjectileID.Sets.TrailingMode[projectile.type] = 2;
+            ProjectileID.Sets.TrailCacheLength[Projectile.type] = 6;
+            ProjectileID.Sets.TrailingMode[Projectile.type] = 2;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 14;
-            projectile.height = 14;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 275;
+            Projectile.width = 14;
+            Projectile.height = 14;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 275;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = mod.GetTexture("NPCs/CataBoss/ShadowOutline");
+            Texture2D texture = ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/ShadowOutline").Value;
 
             Rectangle frame = texture.Frame();
-            SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+            SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-            for (int i = projectile.oldPos.Length - 1; i >= 0; i--)
+            for (int i = Projectile.oldPos.Length - 1; i >= 0; i--)
             {
-                float alpha = (projectile.oldPos.Length - i) / (float)projectile.oldPos.Length;
-                spriteBatch.Draw(texture, projectile.oldPos[i] + projectile.Center - projectile.position - Main.screenPosition, frame, Color.White * alpha, projectile.oldRot[i], frame.Size() / 2, projectile.scale * alpha, effects, 0f);
+                float alpha = (Projectile.oldPos.Length - i) / (float)Projectile.oldPos.Length;
+                Main.EntitySpriteDraw(texture, Projectile.oldPos[i] + Projectile.Center - Projectile.position - Main.screenPosition, frame, Color.White * alpha, Projectile.oldRot[i], frame.Size() / 2, Projectile.scale * alpha, effects, 0f);
             }
 
-            Texture2D texture2 = Main.projectileTexture[projectile.type];
+            Texture2D texture2 = TextureAssets.Projectile[Projectile.type].Value;
 
             Rectangle frame2 = texture2.Frame();
 
-            for (int i = projectile.oldPos.Length - 1; i >= 0; i--)
+            for (int i = Projectile.oldPos.Length - 1; i >= 0; i--)
             {
-                float alpha = (projectile.oldPos.Length - i) / (float)projectile.oldPos.Length;
-                spriteBatch.Draw(texture2, projectile.oldPos[i] + projectile.Center - projectile.position - Main.screenPosition, frame2, Color.White * alpha, projectile.oldRot[i], frame2.Size() / 2, projectile.scale * alpha, effects, 0f);
+                float alpha = (Projectile.oldPos.Length - i) / (float)Projectile.oldPos.Length;
+                Main.EntitySpriteDraw(texture2, Projectile.oldPos[i] + Projectile.Center - Projectile.position - Main.screenPosition, frame2, Color.White * alpha, Projectile.oldRot[i], frame2.Size() / 2, Projectile.scale * alpha, effects, 0f);
             }
 
             return false;
@@ -5205,84 +5250,85 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class MothronSpiralProjectile : ModProjectile
     {
-        public override string Texture => "Terraria/NPC_477";
+        public override string Texture => "Terraria/Images/NPC_477";
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Mothron");
-            Main.projFrames[projectile.type] = 6;
+            // DisplayName.SetDefault("Mothron");
+            Main.projFrames[Projectile.type] = 6;
 
-            ProjectileID.Sets.TrailCacheLength[projectile.type] = 13;
-            ProjectileID.Sets.TrailingMode[projectile.type] = 2;
+            ProjectileID.Sets.TrailCacheLength[Projectile.type] = 13;
+            ProjectileID.Sets.TrailingMode[Projectile.type] = 2;
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 64;
-            projectile.height = 64;
-            projectile.alpha = 0;
-            projectile.light = 0f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.scale = 1f;
-            projectile.timeLeft = 314 + 30;
+            Projectile.width = 64;
+            Projectile.height = 64;
+            Projectile.alpha = 0;
+            Projectile.light = 0f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.scale = 1f;
+            Projectile.timeLeft = 314 + 30;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            if (projectile.timeLeft == 314)
+            if (Projectile.timeLeft == 314)
             {
-                projectile.velocity = projectile.velocity.SafeNormalize(Vector2.Zero) * 6;
+                Projectile.velocity = Projectile.velocity.SafeNormalize(Vector2.Zero) * 6;
             }
-            else if (projectile.timeLeft < 314)
+            else if (Projectile.timeLeft < 314)
             {
-                projectile.velocity = projectile.velocity.RotatedBy(-projectile.ai[0] * MathHelper.Pi / 314f);
+                Projectile.velocity = Projectile.velocity.RotatedBy(-Projectile.ai[0] * MathHelper.Pi / 314f);
             }
 
-            projectile.rotation = projectile.velocity.ToRotation() + MathHelper.Pi;
-            projectile.direction = projectile.velocity.X > 0 ? -1 : 1;
-            projectile.spriteDirection = projectile.direction;
+            Projectile.rotation = Projectile.velocity.ToRotation() + MathHelper.Pi;
+            Projectile.direction = Projectile.velocity.X > 0 ? -1 : 1;
+            Projectile.spriteDirection = Projectile.direction;
 
             //frame stuff
-            projectile.frameCounter++;
-            if (projectile.frameCounter == 3)
+            Projectile.frameCounter++;
+            if (Projectile.frameCounter == 3)
             {
-                projectile.frameCounter = 0;
-                projectile.frame++;
-                if (projectile.frame == 6)
+                Projectile.frameCounter = 0;
+                Projectile.frame++;
+                if (Projectile.frame == 6)
                 {
-                    projectile.frame = 0;
+                    Projectile.frame = 0;
                 }
             }
         }
 
         public override void Kill(int timeLeft)
         {
-            Main.PlaySound(SoundID.NPCKilled, (int)projectile.Center.X, (int)projectile.Center.Y, 44, volumeScale: 0.5f);
+            SoundEngine.PlaySound(SoundID.NPCDeath44.WithVolumeScale(0.5f), Projectile.Center);
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
-            SpriteEffects effects = projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
+            SpriteEffects effects = Projectile.spriteDirection == 1 ? SpriteEffects.None : SpriteEffects.FlipVertically;
 
-            for (int i = projectile.oldPos.Length - 1; i >= 0; i -= 3)
+            for (int i = Projectile.oldPos.Length - 1; i >= 0; i -= 3)
             {
-                Rectangle frame = texture.Frame(1, 6, 0, ((projectile.frame * 3 + projectile.frameCounter + 6 - i) / 3) % 6);
+                Rectangle frame = texture.Frame(1, 6, 0, ((Projectile.frame * 3 + Projectile.frameCounter + 6 - i) / 3) % 6);
 
-                float alpha = (projectile.oldPos.Length - i) / (float)projectile.oldPos.Length;
+                float alpha = (Projectile.oldPos.Length - i) / (float)Projectile.oldPos.Length;
                 if (i != 0) alpha /= 2;
-                spriteBatch.Draw(texture, projectile.oldPos[i] + projectile.Center - projectile.position - Main.screenPosition, frame, Color.White * alpha, projectile.oldRot[i], frame.Size() / 2, projectile.scale, effects, 0f);
+                Main.EntitySpriteDraw(texture, Projectile.oldPos[i] + Projectile.Center - Projectile.position - Main.screenPosition, frame, Color.White * alpha, Projectile.oldRot[i], frame.Size() / 2, Projectile.scale, effects, 0f);
             }
 
             return false;
@@ -5293,7 +5339,7 @@ namespace DeathsTerminus.NPCs.CataBoss
     {
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Celestial Lamp");
+            // DisplayName.SetDefault("Celestial Lamp");
 
             /*Texture2D texture = new Texture2D(Main.spriteBatch.GraphicsDevice, 512, 512, false, SurfaceFormat.Color);
 			System.Collections.Generic.List<Color> list = new System.Collections.Generic.List<Color>();
@@ -5317,74 +5363,75 @@ namespace DeathsTerminus.NPCs.CataBoss
 			}
 			texture.SetData(list.ToArray());
 			texture.SaveAsPng(new FileStream(Main.SavePath + Path.DirectorySeparatorChar + "CelestialLamp.png", FileMode.Create), texture.Width, texture.Height);*/
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 512;
-            projectile.height = 512;
-            projectile.alpha = 0;
-            projectile.light = 4f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = -1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.timeLeft = 1620;
-            projectile.scale = 1 / 600f;
+            Projectile.width = 512;
+            Projectile.height = 512;
+            Projectile.alpha = 0;
+            Projectile.light = 4f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = -1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.timeLeft = 1620;
+            Projectile.scale = 1 / 600f;
         }
 
         public override void AI()
         {
-            if (projectile.scale < 2f && projectile.timeLeft > 60)
+            if (Projectile.scale < 2f && Projectile.timeLeft > 60)
             {
-                projectile.scale = (projectile.scale + 1 / 600f) / (2 + 1 / 600f) * 2;
+                Projectile.scale = (Projectile.scale + 1 / 600f) / (2 + 1 / 600f) * 2;
             }
-            else if (projectile.timeLeft <= 60)
+            else if (Projectile.timeLeft <= 60)
             {
-                projectile.scale -= 1 / 60f;
+                Projectile.scale -= 1 / 60f;
             }
 
-            Vector2 oldCenter = projectile.Center;
-            projectile.width = (int)(512 * projectile.scale);
-            projectile.height = (int)(512 * projectile.scale);
-            projectile.Center = oldCenter;
+            Vector2 oldCenter = Projectile.Center;
+            Projectile.width = (int)(512 * Projectile.scale);
+            Projectile.height = (int)(512 * Projectile.scale);
+            Projectile.Center = oldCenter;
 
-            if (projectile.timeLeft == 60 || projectile.timeLeft == 300 && Main.netMode != 1)
+            if (Projectile.timeLeft == 60 || Projectile.timeLeft == 300 && Main.netMode != NetmodeID.MultiplayerClient)
             {
                 for (int i = 0; i < 12; i++)
                 {
-                    Projectile.NewProjectile(projectile.Center, new Vector2(0.7f, 0).RotatedBy(i * MathHelper.TwoPi / 12), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 2f);
+                    Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, new Vector2(0.7f, 0).RotatedBy(i * MathHelper.TwoPi / 12), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 2f);
                 }
             }
-            else if (projectile.timeLeft == 180 || projectile.timeLeft == 420 && Main.netMode != 1)
+            else if (Projectile.timeLeft == 180 || Projectile.timeLeft == 420 && Main.netMode != NetmodeID.MultiplayerClient)
             {
                 for (int i = 0; i < 12; i++)
                 {
-                    Projectile.NewProjectile(projectile.Center, new Vector2(0.7f, 0).RotatedBy((i + 0.5f) * MathHelper.TwoPi / 12), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 2f);
+                    Projectile.NewProjectile(Projectile.GetSource_FromThis(), Projectile.Center, new Vector2(0.7f, 0).RotatedBy((i + 0.5f) * MathHelper.TwoPi / 12), ModContent.ProjectileType<CataBossSuperScythe>(), 80, 0f, Main.myPlayer, ai1: 2f);
                 }
             }
-            if (projectile.timeLeft == 30 || projectile.timeLeft == 150 || projectile.timeLeft == 270 || projectile.timeLeft == 390)
+            if (Projectile.timeLeft == 30 || Projectile.timeLeft == 150 || Projectile.timeLeft == 270 || Projectile.timeLeft == 390)
             {
-                Main.PlaySound(SoundID.Item71, projectile.Center);
+                SoundEngine.PlaySound(SoundID.Item71, Projectile.Center);
             }
         }
 
         public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
         {
-            Vector2 circleCenter = projectile.Center;
+            Vector2 circleCenter = Projectile.Center;
             float nearestX = Math.Max(targetHitbox.X, Math.Min(circleCenter.X, targetHitbox.X + targetHitbox.Size().X));
             float nearestY = Math.Max(targetHitbox.Y, Math.Min(circleCenter.Y, targetHitbox.Y + targetHitbox.Size().Y));
-            return new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < projectile.width / 2;
+            return new Vector2(circleCenter.X - nearestX, circleCenter.Y - nearestY).Length() < Projectile.width / 2;
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
             Rectangle frame = texture.Frame();
 
-            spriteBatch.Draw(texture, projectile.Center - Main.screenPosition, frame, Color.White * (1 - projectile.alpha / 255f), projectile.rotation, frame.Size() / 2, projectile.scale, SpriteEffects.None, 0f);
+            Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition, frame, Color.White * (1 - Projectile.alpha / 255f), Projectile.rotation, frame.Size() / 2, Projectile.scale, SpriteEffects.None, 0f);
 
             return false;
         }
@@ -5392,86 +5439,87 @@ namespace DeathsTerminus.NPCs.CataBoss
 
     public class CataBossStar : ModProjectile
     {
-        public override string Texture => "Terraria/Projectile_" + ProjectileID.FallingStar;
+        public override string Texture => "Terraria/Images/Projectile_" + ProjectileID.FallingStar;
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Falling Star");
+            // DisplayName.SetDefault("Falling Star");
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
         public override void SetDefaults()
         {
-            projectile.width = 22;
-            projectile.height = 22;
-            projectile.aiStyle = -1;
-            projectile.penetrate = -1;
-            projectile.timeLeft = 3600;
-            projectile.tileCollide = false;
-            projectile.light = 0.9f;
-            projectile.scale = 1.2f;
+            Projectile.width = 22;
+            Projectile.height = 22;
+            Projectile.aiStyle = -1;
+            Projectile.penetrate = -1;
+            Projectile.timeLeft = 3600;
+            Projectile.tileCollide = false;
+            Projectile.light = 0.9f;
+            Projectile.scale = 1.2f;
         }
 
         public override void AI()
         {
-            if (projectile.ai[1] == 0f && !Collision.SolidCollision(projectile.position, projectile.width, projectile.height))
+            if (Projectile.ai[1] == 0f && !Collision.SolidCollision(Projectile.position, Projectile.width, Projectile.height))
             {
-                projectile.ai[1] = 1f;
-                projectile.netUpdate = true;
+                Projectile.ai[1] = 1f;
+                Projectile.netUpdate = true;
             }
-            if (projectile.timeLeft < 3600 - 180)
+            if (Projectile.timeLeft < 3600 - 180)
             {
-                projectile.tileCollide = true;
+                Projectile.tileCollide = true;
             }
-            if (projectile.soundDelay == 0)
+            if (Projectile.soundDelay == 0)
             {
-                projectile.soundDelay = 20 + Main.rand.Next(40);
-                Main.PlaySound(SoundID.Item9, projectile.position);
+                Projectile.soundDelay = 20 + Main.rand.Next(40);
+                SoundEngine.PlaySound(SoundID.Item9, Projectile.position);
             }
-            projectile.rotation += (Math.Abs(projectile.velocity.X) + Math.Abs(projectile.velocity.Y)) * 0.01f * (float)projectile.direction;
-            if (projectile.ai[1] == 1f)
+            Projectile.rotation += (Math.Abs(Projectile.velocity.X) + Math.Abs(Projectile.velocity.Y)) * 0.01f * (float)Projectile.direction;
+            if (Projectile.ai[1] == 1f)
             {
-                projectile.light = 0.9f;
-                if (Main.rand.Next(10) == 0)
+                Projectile.light = 0.9f;
+                if (Main.rand.NextBool(10))
                 {
-                    Vector2 position30 = projectile.position;
-                    int width27 = projectile.width;
-                    int height27 = projectile.height;
-                    float speedX13 = projectile.velocity.X * 0.5f;
-                    float speedY13 = projectile.velocity.Y * 0.5f;
+                    Vector2 position30 = Projectile.position;
+                    int width27 = Projectile.width;
+                    int height27 = Projectile.height;
+                    float speedX13 = Projectile.velocity.X * 0.5f;
+                    float speedY13 = Projectile.velocity.Y * 0.5f;
                     Color newColor = default(Color);
-                    Dust.NewDust(position30, width27, height27, 58, speedX13, speedY13, 150, newColor, 1.2f);
+                    Dust.NewDust(position30, width27, height27, DustID.Enchanted_Pink, speedX13, speedY13, 150, newColor, 1.2f);
                 }
-                if (Main.rand.Next(20) == 0)
+                if (Main.rand.NextBool(20))
                 {
-                    Gore.NewGore(projectile.position, new Vector2(projectile.velocity.X * 0.2f, projectile.velocity.Y * 0.2f), Main.rand.Next(16, 18));
+                    Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.position, new Vector2(Projectile.velocity.X * 0.2f, Projectile.velocity.Y * 0.2f), Main.rand.Next(16, 18));
                 }
             }
         }
 
         public override void Kill(int timeLeft)
         {
-            Main.PlaySound(SoundID.Item10, projectile.position);
+            SoundEngine.PlaySound(SoundID.Item10, Projectile.position);
             int num537 = 10;
             int num538 = 3;
             for (int num539 = 0; num539 < num537; num539++)
             {
-                Dust.NewDust(projectile.position, projectile.width, projectile.height, 58, projectile.velocity.X * 0.1f, projectile.velocity.Y * 0.1f, 150, default(Color), 1.2f);
+                Dust.NewDust(Projectile.position, Projectile.width, Projectile.height, DustID.Enchanted_Pink, Projectile.velocity.X * 0.1f, Projectile.velocity.Y * 0.1f, 150, default(Color), 1.2f);
             }
             for (int num540 = 0; num540 < num538; num540++)
             {
                 int num541 = Main.rand.Next(16, 18);
-                Gore.NewGore(projectile.position, new Vector2(projectile.velocity.X * 0.05f, projectile.velocity.Y * 0.05f), num541);
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.position, new Vector2(Projectile.velocity.X * 0.05f, Projectile.velocity.Y * 0.05f), num541);
             }
             for (int num542 = 0; num542 < 10; num542++)
             {
-                Dust.NewDust(projectile.position, projectile.width, projectile.height, 57, projectile.velocity.X * 0.1f, projectile.velocity.Y * 0.1f, 150, default(Color), 1.2f);
+                Dust.NewDust(Projectile.position, Projectile.width, Projectile.height, DustID.Enchanted_Gold, Projectile.velocity.X * 0.1f, Projectile.velocity.Y * 0.1f, 150, default(Color), 1.2f);
             }
             for (int num543 = 0; num543 < 3; num543++)
             {
-                Gore.NewGore(projectile.position, new Vector2(projectile.velocity.X * 0.05f, projectile.velocity.Y * 0.05f), Main.rand.Next(16, 18));
+                Gore.NewGore(Projectile.GetSource_FromThis(), Projectile.position, new Vector2(Projectile.velocity.X * 0.05f, Projectile.velocity.Y * 0.05f), Main.rand.Next(16, 18));
             }
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
             lightColor = Color.White;
             return true;
@@ -5481,53 +5529,54 @@ namespace DeathsTerminus.NPCs.CataBoss
     public class CataBossRod : ModProjectile
     {
         //rod of discord of doom
-        public override string Texture => "Terraria/Item_" + ItemID.RodofDiscord;
+        public override string Texture => "Terraria/Images/Item_" + ItemID.RodofDiscord;
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Rod of Judgement");
+            // DisplayName.SetDefault("Rod of Judgement");
+            ProjectileID.Sets.DrawScreenCheckFluff[Type] = 2400;
         }
 
         public override void SetDefaults()
         {
-            projectile.width = 34;
-            projectile.height = 34;
-            projectile.scale = 10f;
-            projectile.aiStyle = -1;
-            projectile.hostile = true;
-            projectile.penetrate = 1;
-            projectile.tileCollide = false;
-            projectile.ignoreWater = true;
-            projectile.timeLeft = 1200;
+            Projectile.width = 34;
+            Projectile.height = 34;
+            Projectile.scale = 10f;
+            Projectile.aiStyle = -1;
+            Projectile.hostile = true;
+            Projectile.penetrate = 1;
+            Projectile.tileCollide = false;
+            Projectile.ignoreWater = true;
+            Projectile.timeLeft = 1200;
 
-            projectile.hide = true;
+            Projectile.hide = true;
         }
 
         public override void AI()
         {
-            projectile.rotation += projectile.velocity.X / 0.1f;
+            Projectile.rotation += Projectile.velocity.X / 0.1f;
 
-            Player player = Main.player[(int)projectile.ai[0]];
-            projectile.velocity += ((player.Center - projectile.Center).SafeNormalize(Vector2.Zero) * Math.Max(16, player.velocity.Length() + 4) - projectile.velocity) / 20f;
+            Player player = Main.player[(int)Projectile.ai[0]];
+            Projectile.velocity += ((player.Center - Projectile.Center).SafeNormalize(Vector2.Zero) * Math.Max(16, player.velocity.Length() + 4) - Projectile.velocity) / 20f;
         }
 
-        public override void DrawBehind(int index, List<int> drawCacheProjsBehindNPCsAndTiles, List<int> drawCacheProjsBehindNPCs, List<int> drawCacheProjsBehindProjectiles, List<int> drawCacheProjsOverWiresUI)
+        public override void DrawBehind(int index, List<int> behindNPCsAndTiles, List<int> behindNPCs, List<int> behindProjectiles, List<int> overPlayers, List<int> overWiresUI)
         {
-            drawCacheProjsBehindNPCs.Add(index);
+            behindNPCs.Add(index);
         }
 
-        public override void OnHitPlayer(Player target, int damage, bool crit)
+        public override void OnHitPlayer(Player target, Player.HurtInfo info)
         {
-            projectile.Kill();
+            Projectile.Kill();
         }
 
-        public override bool PreDraw(SpriteBatch spriteBatch, Color lightColor)
+        public override bool PreDraw(ref Color lightColor)
         {
-            Texture2D texture = Main.projectileTexture[projectile.type];
+            Texture2D texture = TextureAssets.Projectile[Projectile.type].Value;
 
             Rectangle frame = texture.Frame();
 
-            spriteBatch.Draw(texture, projectile.Center - Main.screenPosition, frame, Color.White * (1 - projectile.alpha / 255f), projectile.rotation, frame.Size() / 2, projectile.scale, SpriteEffects.None, 0f);
+            Main.EntitySpriteDraw(texture, Projectile.Center - Main.screenPosition, frame, Color.White * (1 - Projectile.alpha / 255f), Projectile.rotation, frame.Size() / 2, Projectile.scale, SpriteEffects.None, 0f);
 
             return false;
         }
@@ -5590,7 +5639,7 @@ namespace DeathsTerminus.NPCs.CataBoss
             //draw the sky and the eclipse of doom
             if (maxDepth >= 0 && minDepth < 0)
             {
-                spriteBatch.Draw(ModContent.GetTexture("DeathsTerminus/NPCs/CataBoss/HeavenPetProjectileTelegraph"), new Rectangle(0, 0, Main.screenWidth, Main.screenHeight), Color.Black);
+                spriteBatch.Draw(ModContent.Request<Texture2D>("DeathsTerminus/NPCs/CataBoss/HeavenPetProjectileTelegraph").Value, new Rectangle(0, 0, Main.screenWidth, Main.screenHeight), Color.Black);
 
                 switch (celestialObject)
                 {
@@ -5599,11 +5648,11 @@ namespace DeathsTerminus.NPCs.CataBoss
                             spriteBatch.Draw(TextureCache.EclipseTexture.Value, new Vector2(Main.screenWidth / 2, Main.screenHeight / 2 - 300) - new Vector2(ECLIPSE_FRAME_SIZE / 2), new Rectangle((eclipseFrame % 10) * ECLIPSE_FRAME_SIZE, (eclipseFrame / 10) * ECLIPSE_FRAME_SIZE, ECLIPSE_FRAME_SIZE, ECLIPSE_FRAME_SIZE), Color.White);
                         break;
                     case 2:
-                    if (TextureCache.BlueSunTexture != null)
+                        if (TextureCache.BlueSunTexture != null)
                             spriteBatch.Draw(TextureCache.BlueSunTexture.Value, new Vector2(Main.screenWidth / 2, Main.screenHeight / 2 - 300) - new Vector2(ECLIPSE_FRAME_SIZE / 2), new Rectangle((eclipseFrame % 10) * ECLIPSE_FRAME_SIZE, (eclipseFrame / 10) * ECLIPSE_FRAME_SIZE, ECLIPSE_FRAME_SIZE, ECLIPSE_FRAME_SIZE), Color.White);
                         break;
                     case 3:
-                    if (TextureCache.RainbowSunTexture != null)
+                        if (TextureCache.RainbowSunTexture != null)
                             spriteBatch.Draw(TextureCache.RainbowSunTexture.Value, new Vector2(Main.screenWidth / 2, Main.screenHeight / 2 - 300) - new Vector2(ECLIPSE_FRAME_SIZE / 2), new Rectangle((eclipseFrame % 10) * ECLIPSE_FRAME_SIZE, (eclipseFrame / 10) * ECLIPSE_FRAME_SIZE, ECLIPSE_FRAME_SIZE, ECLIPSE_FRAME_SIZE), Color.White);
                         break;
                 }
@@ -5628,6 +5677,19 @@ namespace DeathsTerminus.NPCs.CataBoss
         public override bool IsActive()
         {
             return isActive;
+        }
+    }
+    public class CataScene : ModSceneEffect
+    {
+        public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
+        public override void SpecialVisuals(Player player, bool isActive)
+        {
+            bool cataBoss = NPC.AnyNPCs(ModContent.NPCType<CataBoss>());
+            player.ManageSpecialBiomeVisuals("DeathsTerminus:CataBoss", cataBoss);
+        }
+        public override bool IsSceneEffectActive(Player player)
+        {
+            return NPC.AnyNPCs(ModContent.NPCType<CataBoss>());
         }
     }
 }

@@ -31,7 +31,7 @@ namespace DeathsTerminus.NPCs
             return true;
         }
 
-        public override void NPCLoot(NPC npc)
+        public override void OnKill(NPC npc)
         {
             if (flawless && npc.boss && npc.type != NPCID.MartianSaucer && npc.type != NPCID.MartianSaucerCore && !DTWorld.AnyFlawless)
             {
