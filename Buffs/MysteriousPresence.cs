@@ -9,10 +9,10 @@ namespace DeathsTerminus.Buffs
 {
     public class MysteriousPresence : ModBuff
     {
-        public override void SetDefaults()
+        public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Mysterious Presence");
-            Description.SetDefault("A mysterious presence has cursed you");
+            // DisplayName.SetDefault("Mysterious Presence");
+            // Description.SetDefault("A mysterious presence has cursed you");
             Main.debuff[Type] = true;
             Main.pvpBuff[Type] = true;
             Main.buffNoSave[Type] = true;

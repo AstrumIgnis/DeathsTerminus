@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using Terraria;
+using Terraria.Chat;
 using Terraria.DataStructures;
 using Terraria.ID;
 using Terraria.ModLoader;
@@ -13,31 +14,31 @@ namespace DeathsTerminus.Items
     {
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Catastrophic Sigil");
-            Tooltip.SetDefault("Challenges the master mothman");
+            // DisplayName.SetDefault("Catastrophic Sigil");
+            // Tooltip.SetDefault("Challenges the master mothman");
+            ItemID.Sets.ItemNoGravity[Item.type] = true;
         }
         public override void SetDefaults()
         {
-            item.width = 34;
-            item.height = 40;
-            item.maxStack = 1;
-            item.value = 0;
-            item.rare = ItemRarityID.Expert;
-            item.useAnimation = 30;
-            item.useTime = 30;
-            item.useStyle = ItemUseStyleID.HoldingUp;
-            item.consumable = false;
-            ItemID.Sets.ItemNoGravity[item.type] = true;
+            Item.width = 34;
+            Item.height = 40;
+            Item.maxStack = 1;
+            Item.value = 0;
+            Item.rare = ItemRarityID.Expert;
+            Item.useAnimation = 30;
+            Item.useTime = 30;
+            Item.useStyle = ItemUseStyleID.HoldUp;
+            Item.consumable = false;
         }
         public override bool CanUseItem(Player player)
         {
             if (NPC.downedMoonlord)
             {
-                return !NPC.AnyNPCs(mod.NPCType("CataBoss"));
+                return !NPC.AnyNPCs(Mod.Find<ModNPC>("CataBoss").Type);
             } else
                 return false;
         }
-        public override bool UseItem(Player player)
+        public override bool? UseItem(Player player)
         {
             int cata = NPC.FindFirstNPC(ModContent.NPCType<CataclysmicArmageddon>());
 
@@ -51,13 +52,12 @@ namespace DeathsTerminus.Items
                 if (Main.netMode == NetmodeID.SinglePlayer)
                     Main.NewText(message, 175, 75, 255);
                 else if (Main.netMode == NetmodeID.Server)
-                    NetMessage.BroadcastChatMessage(NetworkText.FromLiteral(message), new Color(175, 75, 255));
+                    ChatHelper.BroadcastChatMessage(NetworkText.FromLiteral(message), new Color(175, 75, 255));
             }
             else
             {
                 NPC.SpawnOnPlayer(player.whoAmI, ModContent.NPCType<CataBoss>());
             }
-
             return true;
         }
     }
@@ -68,32 +68,32 @@ namespace DeathsTerminus.Items
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Catastrophic Sigil Phase 2");
-            Tooltip.SetDefault("Challenges the master mothman");
+            // DisplayName.SetDefault("Catastrophic Sigil Phase 2");
+            // Tooltip.SetDefault("Challenges the master mothman");
+            ItemID.Sets.ItemNoGravity[Item.type] = true;
         }
         public override void SetDefaults()
         {
-            item.width = 34;
-            item.height = 40;
-            item.maxStack = 1;
-            item.value = 0;
-            item.rare = ItemRarityID.Expert;
-            item.useAnimation = 30;
-            item.useTime = 30;
-            item.useStyle = ItemUseStyleID.HoldingUp;
-            item.consumable = false;
-            ItemID.Sets.ItemNoGravity[item.type] = true;
+            Item.width = 34;
+            Item.height = 40;
+            Item.maxStack = 1;
+            Item.value = 0;
+            Item.rare = ItemRarityID.Expert;
+            Item.useAnimation = 30;
+            Item.useTime = 30;
+            Item.useStyle = ItemUseStyleID.HoldUp;
+            Item.consumable = false;
         }
         public override bool CanUseItem(Player player)
         {
             if (NPC.downedMoonlord)
             {
-                return !NPC.AnyNPCs(mod.NPCType("CataBoss"));
+                return !NPC.AnyNPCs(Mod.Find<ModNPC>("CataBoss").Type);
             }
             else
                 return false;
         }
-        public override bool UseItem(Player player)
+        public override bool? UseItem(Player player)
         {
             int cata = NPC.FindFirstNPC(ModContent.NPCType<CataclysmicArmageddon>());
 
@@ -109,7 +109,7 @@ namespace DeathsTerminus.Items
                 if (Main.netMode == NetmodeID.SinglePlayer)
                     Main.NewText(message, 175, 75, 255);
                 else if (Main.netMode == NetmodeID.Server)
-                    NetMessage.BroadcastChatMessage(NetworkText.FromLiteral(message), new Color(175, 75, 255));
+                    ChatHelper.BroadcastChatMessage(NetworkText.FromLiteral(message), new Color(175, 75, 255));
             }
             else
             {
@@ -131,32 +131,32 @@ namespace DeathsTerminus.Items
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Catastrophic Sigil Phase 3");
-            Tooltip.SetDefault("Challenges the master mothman");
+            // DisplayName.SetDefault("Catastrophic Sigil Phase 3");
+            // Tooltip.SetDefault("Challenges the master mothman");
+            ItemID.Sets.ItemNoGravity[Item.type] = true;
         }
         public override void SetDefaults()
         {
-            item.width = 34;
-            item.height = 40;
-            item.maxStack = 1;
-            item.value = 0;
-            item.rare = ItemRarityID.Expert;
-            item.useAnimation = 30;
-            item.useTime = 30;
-            item.useStyle = ItemUseStyleID.HoldingUp;
-            item.consumable = false;
-            ItemID.Sets.ItemNoGravity[item.type] = true;
+            Item.width = 34;
+            Item.height = 40;
+            Item.maxStack = 1;
+            Item.value = 0;
+            Item.rare = ItemRarityID.Expert;
+            Item.useAnimation = 30;
+            Item.useTime = 30;
+            Item.useStyle = ItemUseStyleID.HoldUp;
+            Item.consumable = false;
         }
         public override bool CanUseItem(Player player)
         {
             if (NPC.downedMoonlord)
             {
-                return !NPC.AnyNPCs(mod.NPCType("CataBoss"));
+                return !NPC.AnyNPCs(Mod.Find<ModNPC>("CataBoss").Type);
             }
             else
                 return false;
         }
-        public override bool UseItem(Player player)
+        public override bool? UseItem(Player player)
         {
             int cata = NPC.FindFirstNPC(ModContent.NPCType<CataclysmicArmageddon>());
 
@@ -172,7 +172,7 @@ namespace DeathsTerminus.Items
                 if (Main.netMode == NetmodeID.SinglePlayer)
                     Main.NewText(message, 175, 75, 255);
                 else if (Main.netMode == NetmodeID.Server)
-                    NetMessage.BroadcastChatMessage(NetworkText.FromLiteral(message), new Color(175, 75, 255));
+                    ChatHelper.BroadcastChatMessage(NetworkText.FromLiteral(message), new Color(175, 75, 255));
             }
             else
             {
@@ -194,32 +194,32 @@ namespace DeathsTerminus.Items
 
         public override void SetStaticDefaults()
         {
-            DisplayName.SetDefault("Catastrophic Sigil Phase 4");
-            Tooltip.SetDefault("Challenges the master mothman");
+            // DisplayName.SetDefault("Catastrophic Sigil Phase 4");
+            // Tooltip.SetDefault("Challenges the master mothman");
+            ItemID.Sets.ItemNoGravity[Item.type] = true;
         }
         public override void SetDefaults()
         {
-            item.width = 34;
-            item.height = 40;
-            item.maxStack = 1;
-            item.value = 0;
-            item.rare = ItemRarityID.Expert;
-            item.useAnimation = 30;
-            item.useTime = 30;
-            item.useStyle = ItemUseStyleID.HoldingUp;
-            item.consumable = false;
-            ItemID.Sets.ItemNoGravity[item.type] = true;
+            Item.width = 34;
+            Item.height = 40;
+            Item.maxStack = 1;
+            Item.value = 0;
+            Item.rare = ItemRarityID.Expert;
+            Item.useAnimation = 30;
+            Item.useTime = 30;
+            Item.useStyle = ItemUseStyleID.HoldUp;
+            Item.consumable = false;
         }
         public override bool CanUseItem(Player player)
         {
             if (NPC.downedMoonlord)
             {
-                return !NPC.AnyNPCs(mod.NPCType("CataBoss"));
+                return !NPC.AnyNPCs(Mod.Find<ModNPC>("CataBoss").Type);
             }
             else
                 return false;
         }
-        public override bool UseItem(Player player)
+        public override bool? UseItem(Player player)
         {
             int cata = NPC.FindFirstNPC(ModContent.NPCType<CataclysmicArmageddon>());
 
@@ -235,7 +235,7 @@ namespace DeathsTerminus.Items
                 if (Main.netMode == NetmodeID.SinglePlayer)
                     Main.NewText(message, 175, 75, 255);
                 else if (Main.netMode == NetmodeID.Server)
-                    NetMessage.BroadcastChatMessage(NetworkText.FromLiteral(message), new Color(175, 75, 255));
+                    ChatHelper.BroadcastChatMessage(NetworkText.FromLiteral(message), new Color(175, 75, 255));
             }
             else
             {
